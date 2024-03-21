@@ -1,4 +1,5 @@
 import "package:dio/dio.dart";
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
@@ -20,11 +21,13 @@ class HttpUtil {
       onRequest: (options, handler) async {
         options.headers["X-AUTH-TYPE"] = "token";
         options.headers["Authorization"] = await SpUtil.getToken();
-        options.headers["X-BK"] =
-            Provider.of<GlobalStateProvider>(Application.context, listen: false)
-                .getBId;
+        options.headers["X-BK"] = Application.currentContext != null
+            ? Provider.of<GlobalStateProvider>(Application.currentContext!,
+                    listen: false)
+                .getBId
+            : "";
         _log.i(
-            "--->Request: Url${options.path},Params:${options.queryParameters},Data:${options.data}");
+            "--->Request: Url${options.path} Method:${options.method},Params:${options.queryParameters},Data:${options.data}");
         handler.next(options);
       },
       onResponse: (response, handler) {
@@ -35,8 +38,11 @@ class HttpUtil {
           if (code != null && code == 4001 || code == 4002 || code == 4003) {
             //跳转登录页
             SpUtil.cleanToken();
-            Application.context.go("/login");
-            return;
+            Application.currentContext!
+                .read<GlobalStateProvider>()
+                .setUserInfo(null);
+            EasyLoading.showToast("登录过期请");
+            Application.currentContext!.go("/login");
           }
         }
         handler.next(response);

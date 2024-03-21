@@ -1,19 +1,21 @@
-import 'package:flutter/widgets.dart';
+import 'package:animations/animations.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
 import 'package:tspi_nas_app/application.dart';
+import 'package:tspi_nas_app/model/app/file_router_entity.dart';
 import 'package:tspi_nas_app/pages/buckets_page.dart';
+import 'package:tspi_nas_app/pages/files_page.dart';
 import 'package:tspi_nas_app/pages/index.dart';
 import 'package:tspi_nas_app/pages/login_page.dart';
 import 'package:tspi_nas_app/pages/my_page.dart';
 import 'package:tspi_nas_app/pages/setting_page.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
+import 'package:tspi_nas_app/utils/log_util.dart';
 import 'package:tspi_nas_app/utils/sp_util.dart';
 import 'package:tspi_nas_app/utils/widget_common.dart';
-
-final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 ///Nav导航Tab页面子路由
 final _navTabPagerRouter = StatefulShellRoute.indexedStack(
@@ -25,9 +27,19 @@ final _navTabPagerRouter = StatefulShellRoute.indexedStack(
     branches: [
       StatefulShellBranch(routes: [
         GoRoute(
-          path: "/",
-          builder: (context, state) => const BucketsPage(),
-        )
+            path: "/",
+            builder: (context, state) => const BucketsPage(),
+            routes: [
+              GoRoute(
+                  path: "file",
+                  pageBuilder: (context, state) {
+                    return CustomTransitionPage(
+                        child: FileObjectPage(
+                          routrerData: state.extra as FileRoutrerDataEntity,
+                        ),
+                        transitionsBuilder: _anim1);
+                  })
+            ])
       ]),
       StatefulShellBranch(routes: [
         GoRoute(
@@ -44,7 +56,7 @@ final _navTabPagerRouter = StatefulShellRoute.indexedStack(
     ]);
 
 final GoRouter goRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
+  navigatorKey: Application.rootNavigatorKey,
   initialLocation: '/',
   routes: [
     _navTabPagerRouter,
@@ -54,17 +66,21 @@ final GoRouter goRouter = GoRouter(
     ),
   ],
   redirect: (context, state) async {
-    Application.context = context;
     if (state.path != '/login' &&
         context.read<GlobalStateProvider>().currentUser == null) {
       if ((await SpUtil.getToken()) != null) {
         try {
           EasyLoading.showInfo("正在请求服务器...", dismissOnTap: false);
           var resp = await ApiMap.getCurrentUserInfo();
-          Application.context.read<GlobalStateProvider>().setUserInfo(resp);
+          if (context.mounted) {
+            context.read<GlobalStateProvider>().setUserInfo(resp);
+          } else {
+            return "/login";
+          }
           EasyLoading.dismiss();
           return null;
-        } catch (e) {
+        } catch (e, stackTrace) {
+          LogUtil.logError("Router守卫获取用户信息错误: $e, \n堆栈信息:$stackTrace");
           SpUtil.cleanToken();
           EasyLoading.dismiss();
           ToastUtil.show(msg: e);
@@ -75,3 +91,13 @@ final GoRouter goRouter = GoRouter(
     return null;
   },
 );
+
+Widget _anim1(BuildContext context, Animation<double> animation,
+    Animation<double> secondaryAnimation, Widget child) {
+  return FadeThroughTransition(
+    fillColor: Theme.of(context).scaffoldBackgroundColor,
+    animation: animation,
+    secondaryAnimation: secondaryAnimation,
+    child: child,
+  );
+}

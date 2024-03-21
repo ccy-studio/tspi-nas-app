@@ -18,6 +18,8 @@ class FileObjectModel {
 
   String? createTime;
 
+  bool check;
+
   FileObjectModel({
     required this.id,
     required this.fileName,
@@ -27,6 +29,7 @@ class FileObjectModel {
     required this.isDir,
     this.parentId,
     this.createTime,
+    this.check = false,
   });
 
   FileObjectModel copyWith({
@@ -38,6 +41,7 @@ class FileObjectModel {
     bool? isDir,
     int? parentId,
     String? createTime,
+    bool? check,
   }) {
     return FileObjectModel(
       id: id ?? this.id,
@@ -48,6 +52,7 @@ class FileObjectModel {
       isDir: isDir ?? this.isDir,
       parentId: parentId ?? this.parentId,
       createTime: createTime ?? this.createTime,
+      check: check ?? this.check,
     );
   }
 
@@ -61,6 +66,7 @@ class FileObjectModel {
       'isDir': isDir,
       'parentId': parentId,
       'createTime': createTime,
+      'check': check,
     };
   }
 
@@ -77,6 +83,7 @@ class FileObjectModel {
       parentId: map['parentId'] != null ? map['parentId'] as int : null,
       createTime:
           map['createTime'] != null ? map['createTime'] as String : null,
+      check: map['check'] != null ? map['check'] as bool : false,
     );
   }
 
@@ -87,7 +94,7 @@ class FileObjectModel {
 
   @override
   String toString() {
-    return 'FileObjectModel(id: $id, fileName: $fileName, fileContentType: $fileContentType, filePath: $filePath, fileSize: $fileSize, isDir: $isDir, parentId: $parentId, createTime: $createTime)';
+    return 'FileObjectModel(id: $id, fileName: $fileName, fileContentType: $fileContentType, filePath: $filePath, fileSize: $fileSize, isDir: $isDir, parentId: $parentId, createTime: $createTime, check: $check)';
   }
 
   @override
@@ -101,7 +108,8 @@ class FileObjectModel {
         other.fileSize == fileSize &&
         other.isDir == isDir &&
         other.parentId == parentId &&
-        other.createTime == createTime;
+        other.createTime == createTime &&
+        other.check == check;
   }
 
   @override
@@ -113,6 +121,7 @@ class FileObjectModel {
         fileSize.hashCode ^
         isDir.hashCode ^
         parentId.hashCode ^
-        createTime.hashCode;
+        createTime.hashCode ^
+        check.hashCode;
   }
 }

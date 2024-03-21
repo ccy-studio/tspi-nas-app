@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
+import 'package:tspi_nas_app/model/app/file_router_entity.dart';
 import 'package:tspi_nas_app/model/buckets_model.dart';
+import 'package:tspi_nas_app/model/file_object_model.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
 import 'package:tspi_nas_app/utils/icon_util.dart';
 import 'package:tspi_nas_app/utils/stream_util.dart';
@@ -36,7 +39,7 @@ class _BucketsPageState extends State<BucketsPage>
       _bucketsArr.clear();
       context.read<GlobalStateProvider>().setBuckets(value);
       _bucketsArr.addAll(value);
-      getLine(_dataLineBucket).setData(_bucketsArr);
+      getLine(_dataLineBucket).setData(_bucketsArr, filterIdentical: false);
       return;
     });
   }
@@ -97,6 +100,7 @@ class _BucketsPageState extends State<BucketsPage>
                   ),
                   Text(
                     item.bucketsName,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 13, color: Colors.black87),
                   )
                 ],
@@ -117,5 +121,15 @@ class _BucketsPageState extends State<BucketsPage>
     }
   }
 
-  void _onBucketClick(BucketsModel mode) {}
+  void _onBucketClick(BucketsModel mode) {
+    context.read<GlobalStateProvider>().setBucketId(mode.id);
+    var rootFile = FileObjectModel(
+        id: mode.rootFolderId, fileName: "/", filePath: "/", isDir: true);
+    var data = FileRoutrerDataEntity(
+        bucketsModel: mode,
+        trees: [rootFile],
+        levelNameList: ["/"],
+        rootObject: rootFile);
+    context.push("/file", extra: data);
+  }
 }

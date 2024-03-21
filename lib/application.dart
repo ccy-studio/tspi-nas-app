@@ -6,7 +6,9 @@ import "package:tspi_nas_app/utils/sp_util.dart";
 class Application {
   static String BASE_URL = "";
 
-  static late BuildContext context;
+  static final rootNavigatorKey = GlobalKey<NavigatorState>();
+
+  static BuildContext? get currentContext => rootNavigatorKey.currentContext;
 
   static bool _isInstall = false;
 
@@ -15,7 +17,6 @@ class Application {
       return;
     }
     _isInstall = true;
-    Application.context = context;
     tdr.register();
     SpUtil.getBaseUrl().then((value) => BASE_URL = value ?? "");
 
