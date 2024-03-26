@@ -6,11 +6,13 @@ import 'package:provider/provider.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
 import 'package:tspi_nas_app/application.dart';
 import 'package:tspi_nas_app/model/app/file_router_entity.dart';
+import 'package:tspi_nas_app/model/file_object_model.dart';
 import 'package:tspi_nas_app/pages/buckets_page.dart';
 import 'package:tspi_nas_app/pages/files_page.dart';
 import 'package:tspi_nas_app/pages/index.dart';
 import 'package:tspi_nas_app/pages/login_page.dart';
 import 'package:tspi_nas_app/pages/my_page.dart';
+import 'package:tspi_nas_app/pages/preview_image.dart';
 import 'package:tspi_nas_app/pages/setting_page.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
 import 'package:tspi_nas_app/utils/log_util.dart';
@@ -38,7 +40,18 @@ final _navTabPagerRouter = StatefulShellRoute.indexedStack(
                           routrerData: state.extra as FileRoutrerDataEntity,
                         ),
                         transitionsBuilder: _anim1);
-                  })
+                  },
+                  routes: [
+                    GoRoute(
+                      path: '/preview/image/:index',
+                      name: "preview-image",
+                      builder: (context, state) => PreviewImagePage(
+                        files: state.extra as List<FileObjectModel>,
+                        current:
+                            int.parse(state.pathParameters["index"] ?? "0"),
+                      ),
+                    ),
+                  ])
             ])
       ]),
       StatefulShellBranch(routes: [

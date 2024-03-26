@@ -5,6 +5,7 @@
  * @LastEditTime: 2021-07-15 22:52:40
  */
 import 'dart:convert';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:collection/collection.dart';
 
@@ -52,4 +53,16 @@ String md5Str(String src) {
 ///SHA256签名
 String sha256Str(String src) {
   return sha256.convert(utf8.encode(src)).toString();
+}
+
+String formatBytes(int bytes) {
+  if (bytes < 1024) {
+    return '$bytes B';
+  } else if (bytes < 1024 * 1024) {
+    return '${(bytes / 1024).toStringAsFixed(2)} KB';
+  } else if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  } else {
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
 }

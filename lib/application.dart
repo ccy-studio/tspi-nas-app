@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_easyloading/flutter_easyloading.dart";
 import "package:tspi_nas_app/config/theme_data.dart" as tdr;
+import "package:tspi_nas_app/utils/file_downloader_util.dart";
 import "package:tspi_nas_app/utils/sp_util.dart";
 
 class Application {
@@ -19,6 +20,8 @@ class Application {
     _isInstall = true;
     tdr.register();
     SpUtil.getBaseUrl().then((value) => BASE_URL = value ?? "");
+
+    FileObjectDownloaderUtil.install();
 
     EasyLoading.instance
       ..indicatorType = EasyLoadingIndicatorType.wave

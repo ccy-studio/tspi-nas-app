@@ -255,4 +255,15 @@ mixin MultDataLine {
     dataBus.values.forEach((f) => f.dispose());
     dataBus.clear();
   }
+
+  void removeDataLine(bool Function(String) test) {
+    List<String> keys = [];
+    dataBus.forEach((key, value) {
+      if (test(key)) {
+        keys.add(key);
+        value.dispose();
+      }
+    });
+    keys.forEach(dataBus.remove);
+  }
 }

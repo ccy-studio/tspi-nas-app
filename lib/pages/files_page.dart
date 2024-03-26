@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 import 'dart:math';
 
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:event_bus/event_bus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
@@ -12,13 +16,18 @@ import 'package:tspi_nas_app/common/page_widget_enum.dart';
 import 'package:tspi_nas_app/model/app/file_router_entity.dart';
 import 'package:tspi_nas_app/model/file_object_model.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
+import 'package:tspi_nas_app/utils/file_downloader_util.dart';
 import 'package:tspi_nas_app/utils/icon_util.dart';
 import 'package:tspi_nas_app/utils/log_util.dart';
+import 'package:tspi_nas_app/utils/object_util.dart';
 import 'package:tspi_nas_app/utils/stream_util.dart';
+import 'package:tspi_nas_app/utils/widget_common.dart';
+import 'package:tspi_nas_app/widget/file_move_widget.dart';
+import 'package:tspi_nas_app/widget/icon_button_widget.dart';
 
 final EventBus _filePageEvent = EventBus();
 
-enum _DataLine { select }
+// enum _DataLine { select }
 
 class FileObjectPage extends StatefulWidget {
   final FileRoutrerDataEntity routrerData;
@@ -65,7 +74,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         _pageNum = 1;
         _total = 0;
         _rows.clear();
-        _selectFileIds.clear();
         _loadFiles();
       });
       Future.delayed(Duration.zero).then((value) => _scrollController.animateTo(
@@ -79,6 +87,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   @override
   void dispose() {
+    disposeDataLine();
     _scrollController.dispose();
     _gridViewScrollController.dispose();
     _streamSubscription?.cancel();
@@ -97,6 +106,9 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         .then((value) {
       _total = value.total;
       _rows.addAll(value.rows);
+      if (_pageNum == 1) {
+        _selectFileIds.clear();
+      }
       if (mounted) {
         setState(() {});
       }
@@ -104,6 +116,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
     });
   }
 
+  ///返回文件列表的组件
   Widget? _getPlanWidget(BuildContext context) {
     if (_rows.isEmpty) {
       return null;
@@ -149,33 +162,27 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
                       height: 10,
                     ),
                     Transform.scale(
-                      scale: 0.7,
-                      child: getLine(f.filePath, initData: f.filePath)
-                          .addObserver((context, pack) => SizedBox(
-                                width: double.infinity,
-                                height: 12,
-                                child: Checkbox(
-                                  activeColor: Colors.blueAccent,
-                                  value: f.check,
-                                  onChanged: (value) {
-                                    f.check = value ?? false;
-                                    if (f.check) {
-                                      _selectFileIds.add(f.id);
-                                    } else {
-                                      _selectFileIds.remove(f.id);
-                                    }
-                                    //检查是否具有选择
-                                    _onShowSelectMenuModal();
-                                    getLine(f.filePath).setData(f.filePath,
-                                        filterIdentical: false);
-                                    getLine(_DataLine.select.name).setData(
-                                        _selectFileIds,
-                                        filterIdentical: false);
-                                  },
-                                  shape: const CircleBorder(), //这里就是实现圆形的设置
-                                ),
-                              )),
-                    )
+                        scale: 0.7,
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 12,
+                          child: Checkbox(
+                            activeColor: Colors.blueAccent,
+                            value: f.check,
+                            onChanged: (value) {
+                              f.check = !f.check;
+                              if (f.check) {
+                                _selectFileIds.add(f.id);
+                              } else {
+                                _selectFileIds.remove(f.id);
+                              }
+                              //检查是否具有选择
+                              _onShowSelectMenuModal();
+                              setState(() {});
+                            },
+                            shape: const CircleBorder(), //这里就是实现圆形的设置
+                          ),
+                        ))
                   ],
                 ),
               ),
@@ -183,6 +190,61 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
           });
     } else if (planType == PlanType.list) {}
     return null;
+  }
+
+  ///复选框选择文件后底部展示的可操作按钮组
+  List<Widget> _getFileActionAuthButton() {
+    var bk = widget.routrerData.bucketsModel;
+    List<Widget> list = [];
+    var textStyle = const TextStyle(fontSize: 12, color: Colors.black54);
+    const double height = 23;
+    list.add(IconTextButton(
+      onTap: _selectedBtnGroupDownload,
+      icon: svg(name: "file_download", height: height),
+      label: "下载",
+      textStyle: textStyle,
+    ));
+    if (bk.acl.share) {
+      list.add(IconTextButton(
+          onTap: _selectedBtnGroupShare,
+          icon: svg(name: "file_share", height: height),
+          label: "分享",
+          textStyle: textStyle));
+    }
+    if (bk.acl.delete) {
+      list.add(IconTextButton(
+          onTap: _selectedBtnGroupDel,
+          icon: svg(name: "file_del", height: height),
+          label: "删除",
+          textStyle: textStyle));
+    }
+    if (bk.acl.write) {
+      list.add(IconTextButton(
+          onTap: _selectedBtnGroupCopy,
+          icon: svg(name: "file_copy", height: height),
+          label: "复制",
+          textStyle: textStyle));
+      list.add(IconTextButton(
+          onTap: _selectedBtnGroupMove,
+          icon: svg(name: "file_move", height: height, color: Colors.black),
+          label: "移动",
+          textStyle: textStyle));
+      if (_selectFileIds.length == 1) {
+        list.add(IconTextButton(
+            onTap: _selectedBtnGroupRename,
+            icon: svg(name: "file_rename", height: height),
+            label: "重命名",
+            textStyle: textStyle));
+      }
+    }
+    if (_selectFileIds.length == 1) {
+      list.add(IconTextButton(
+          onTap: _selectedBtnGroupFileInfo,
+          icon: svg(name: "file_info", height: height),
+          label: "详细信息",
+          textStyle: textStyle));
+    }
+    return list;
   }
 
   @override
@@ -204,26 +266,21 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
                       onPressed: _onBackClick,
                     ),
                     Expanded(
-                        child: getLine(_DataLine.select.name,
-                                initData: _selectFileIds)
-                            .addObserver(
-                                (context, pack) => pack.data!.isNotEmpty
-                                    ? Center(
-                                        child: Text(
-                                          overflow: TextOverflow.clip,
-                                          "已选择${pack.data!.length}个文件",
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 15),
-                                        ),
-                                      )
-                                    : const SizedBox())),
-                    getLine(_DataLine.select.name, initData: _selectFileIds)
-                        .addObserver((context, pack) => pack.data!.isEmpty
-                            ? IconButton(
-                                onPressed: () {},
-                                icon: const Icon(Icons.search))
+                        child: _selectFileIds.isNotEmpty
+                            ? Center(
+                                child: Text(
+                                  overflow: TextOverflow.clip,
+                                  "已选择${_selectFileIds.length}个文件",
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15),
+                                ),
+                              )
                             : const SizedBox()),
+                    _selectFileIds.isEmpty //判断是否展示搜索图标
+                        ? IconButton(
+                            onPressed: () {}, icon: const Icon(Icons.search))
+                        : const SizedBox(),
                     IconButton(
                         onPressed: () {}, icon: const Icon(Icons.more_horiz)),
                   ],
@@ -336,41 +393,67 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
                         ),
                   ),
                 )),
+                _selectFileIds.isNotEmpty //判断是否显示文件多选后的按钮组
+                    ? Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: const [
+                              BoxShadow(
+                                  color: Colors.grey,
+                                  blurRadius: 1,
+                                  offset: Offset(0, 1))
+                            ]),
+                        margin: const EdgeInsets.only(
+                            bottom: 30, left: 5, right: 5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 10),
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 20,
+                          runSpacing: 10,
+                          children: _getFileActionAuthButton(),
+                        ),
+                      )
+                    : const SizedBox()
               ],
             ),
           ),
-          getLine(_DataLine.select.name, initData: _selectFileIds)
-              .addObserver((context, pack) => Align(
-                    alignment: Alignment.bottomRight,
-                    child: Visibility(
-                      visible: pack.data!.isEmpty,
-                      child: Padding(
-                          padding: const EdgeInsets.only(bottom: 20, right: 20),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: Ink(
-                              decoration: ShapeDecoration(
-                                color: Theme.of(context).primaryColor,
-                                shape: const CircleBorder(),
-                              ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(50.0),
-                                onTap: _onClickAddMenu,
-                                child: const Icon(
-                                  Icons.add,
-                                  size: 40,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          )),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Visibility(
+              visible: _selectFileIds.isEmpty,
+              child: Padding(
+                  padding: const EdgeInsets.only(bottom: 20, right: 20),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Ink(
+                      decoration: ShapeDecoration(
+                        color: Theme.of(context).primaryColor,
+                        shape: const CircleBorder(),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(50.0),
+                        onTap: _onClickAddMenu,
+                        child: const Icon(
+                          Icons.add,
+                          size: 40,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   )),
+            ),
+          ),
         ],
       ),
     );
   }
 
+  ///点击文件的判断操作
+  ///1. 如果是文件夹类型则打开此文件夹重新加载页面数据
+  ///2. 如果是文件则打开文件预览功能
   void _onFileClick(FileObjectModel model) {
     if (_selectFileIds.isNotEmpty) {
       model.check = !model.check;
@@ -379,12 +462,10 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
       } else {
         _selectFileIds.remove(model.id);
       }
-      getLine(model.filePath).setData(model.filePath, filterIdentical: false);
-      getLine(_DataLine.select.name)
-          .setData(_selectFileIds, filterIdentical: false);
       if (_selectFileIds.isEmpty) {
         _isShowSelectMenu = false;
       }
+      setState(() {});
       return;
     }
     if (model.isDir) {
@@ -393,9 +474,27 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
       routerData.rootObject = model;
       routerData.trees.add(model);
       context.pushReplacement("/file", extra: routerData);
-    } else {}
+    } else {
+      //文件预览
+      //1. 图片 视频 音频 文字可以在线预览
+      if (model.fileContentType!.startsWith("image")) {
+        int index = 0;
+        for (int i = 0; i < _rows.length; i++) {
+          if (_rows[i].id == model.id) {
+            index = i;
+            break;
+          }
+        }
+        context.pushNamed("preview-image",
+            extra: _rows, pathParameters: {"index": index.toString()});
+      }
+    }
   }
 
+  ///点击返回按钮的逻辑
+  ///从routerData中的层级数组的长度进行选择跳转的逻辑
+  ///1. 不等于1 则回退历史上一级的文件夹内数据
+  ///2. 等于1 代表根目录再次点击返回按钮则退出返回存储桶页面
   void _onBackClick() {
     if (widget.routrerData.levelNameList.length != 1) {
       var routerData = widget.routrerData.copyWith();
@@ -408,6 +507,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
     }
   }
 
+  ///点击面包屑跳转到点击的文件夹内数据
   void _onGotoFile(String fileName) {
     var routerData = widget.routrerData.copyWith();
     while (routerData.trees.last.fileName != fileName) {
@@ -427,6 +527,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
     }
   }
 
+  ///点击右下角悬浮按钮的事件
   void _onClickAddMenu() {
     showModalBottomSheet(
         isDismissible: true,
@@ -448,5 +549,224 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
             ),
           );
         });
+  }
+
+  ///---------------文件选中的按钮组点击事件------------------------------//
+  ///
+  ///下载、分享、删除、复制、移动、重命名、详细信息
+  ///
+
+  ///展示文件复制或者移动选择目标文件夹的窗口
+  void _onClickShowFileCopyModal(Function(FileObjectModel) onSelectCall) {
+    showModalBottomSheet(
+        isDismissible: true,
+        context: context,
+        isScrollControlled: true,
+        elevation: 10,
+        barrierColor: Colors.grey.withOpacity(0.5),
+        backgroundColor: Colors.white,
+        builder: (BuildContext context) {
+          return Container(
+            decoration: BoxDecoration(
+                color: Colors.white, borderRadius: BorderRadius.circular(10)),
+            height: MediaQuery.of(context).size.height / 3 * 2,
+            width: double.infinity,
+            child: FileMoveWidget(
+              onSelectCall: onSelectCall,
+              fileRoot: widget.routrerData.trees.first,
+            ),
+          );
+        });
+  }
+
+  ///下载
+  void _selectedBtnGroupDownload() async {
+    //获取系统权限
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.storage,
+      Permission.photos,
+      Permission.videos,
+    ].request();
+
+    if (statuses[Permission.storage] != PermissionStatus.granted) {
+      _openSetting("授权失败，请在设置手动打开文件存储权限！");
+      return;
+    }
+    if (statuses[Permission.photos] != PermissionStatus.granted) {
+      _openSetting("授权失败，请在设置手动打开媒体文件访问权限！");
+      return;
+    }
+    if (statuses[Permission.videos] != PermissionStatus.granted) {
+      _openSetting("授权失败，请在设置手动打开媒体文件访问权限！");
+      return;
+    }
+    //下载开始
+    if (_selectFileIds.isEmpty) {
+      return;
+    }
+    for (int id in _selectFileIds) {
+      if (mounted) {
+        var file = _rows.lastWhere((element) => element.id == id);
+        if (file.isDir) {
+          continue;
+        }
+        var task = FileObjectDownloaderUtil.createDownloadTask(
+          await ApiMap.getDownloadFileSignInfo(objectId: id),
+          file,
+          context,
+        );
+        FileObjectDownloaderUtil.pushQueueDownload(task);
+      }
+    }
+    EasyLoading.showToast("已添加到下载队列!");
+    _selectFileIds.clear();
+    setState(() {});
+  }
+
+  void _openSetting(String message) {
+    if (mounted) {
+      DialogUtil.showAlertMessageDialog(context, message,
+          call: () => openAppSettings());
+    }
+  }
+
+  ///分享
+  void _selectedBtnGroupShare() {}
+
+  ///删除
+  void _selectedBtnGroupDel() {
+    DialogUtil.showConfirmDialog(
+        context, "您确定要删除${_selectFileIds.length}个文件吗，且不可恢复!", ok: () async {
+      bool state = true;
+      for (int id in _selectFileIds) {
+        if (!(await ApiMap.deleteFile(fileObjectId: id))) {
+          state = false;
+        } else {
+          _rows.removeWhere((element) => element.id == id);
+        }
+      }
+      ToastUtil.show(msg: state ? "删除成功" : "删除失败");
+      _selectFileIds.clear();
+      setState(() {});
+    });
+  }
+
+  ///复制
+  void _selectedBtnGroupCopy() {
+    if (_selectFileIds.isNotEmpty) {
+      _onClickShowFileCopyModal((v) async {
+        //选择完成
+        EasyLoading.show(status: "正在复制中...");
+        bool state = true;
+        for (int id in _selectFileIds) {
+          var res = await ApiMap.copyFile(fileObjectId: id, targetId: v.id);
+          if (!res) {
+            state = false;
+          }
+        }
+        EasyLoading.dismiss();
+        ToastUtil.show(msg: state ? "复制成功" : "复制失败");
+        setState(() {
+          _selectFileIds.clear();
+          for (var element in _rows) {
+            element.check = false;
+          }
+        });
+      });
+    }
+  }
+
+  ///移动
+  void _selectedBtnGroupMove() {
+    if (_selectFileIds.isNotEmpty) {
+      _onClickShowFileCopyModal((v) async {
+        //选择完成
+        EasyLoading.show(status: "正在移动中...");
+        bool state = true;
+        for (int id in _selectFileIds) {
+          var res = await ApiMap.moveFile(fileObjectId: id, targetId: v.id);
+          if (!res) {
+            state = false;
+          }
+        }
+        EasyLoading.dismiss();
+        ToastUtil.show(msg: state ? "移动成功" : "移动失败");
+        _selectFileIds.clear();
+        _rows.clear();
+        _pageNum = 1;
+        _loadFiles();
+      });
+    }
+  }
+
+  ///重命名
+  void _selectedBtnGroupRename() {
+    int id = _selectFileIds.last;
+    var file = _rows.lastWhere((element) => element.id == id);
+    DialogUtil.showInputDialog(context, dialogType: DialogType.noHeader,
+        call: (value) {
+      ApiMap.renameFile(fileObjectId: id, newName: value).then((v) {
+        file.fileName = value;
+        setState(() {
+          _selectFileIds.clear();
+          for (var element in _rows) {
+            element.check = false;
+          }
+        });
+      }).catchError((e) => ToastUtil.show(msg: "修改失败"));
+    }, title: "重命名文件", placeholder: "请输入新文件名", initVal: file.fileName);
+  }
+
+  ///文件详细信息
+  void _selectedBtnGroupFileInfo() {
+    var file = _rows.lastWhere((element) => element.id == _selectFileIds.last);
+    List<ListTile> tile = [];
+    tile.add(ListTile(
+      dense: true,
+      title: Text("文件路径: ${file.filePath}"),
+    ));
+    if (!file.isDir) {
+      tile.add(ListTile(
+        dense: true,
+        title: Text("文件大小: ${formatBytes(file.fileSize ?? 0)}"),
+      ));
+      tile.add(ListTile(
+        dense: true,
+        title: Text("文件类型: ${file.fileContentType}"),
+      ));
+    }
+    tile.add(ListTile(
+      dense: true,
+      title: Text("创建时间: ${file.createTime}"),
+    ));
+
+    AwesomeDialog(
+        context: context,
+        dialogType: DialogType.noHeader,
+        animType: AnimType.scale,
+        title: "文件详情",
+        dismissOnTouchOutside: true,
+        dismissOnBackKeyPress: true,
+        body: SizedBox(
+          height: MediaQuery.of(context).size.height / 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                file.fileName,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(
+                height: 3,
+              ),
+              Expanded(
+                  child: ListView(
+                shrinkWrap: true,
+                children: tile,
+              ))
+            ],
+          ),
+        )).show();
   }
 }

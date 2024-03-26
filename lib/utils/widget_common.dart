@@ -147,6 +147,7 @@ class DialogUtil {
       bool Function(String value)? validate,
       String title = "提示",
       String? placeholder,
+      DialogType dialogType = DialogType.question,
       String? initVal}) {
     TextEditingController editingController = TextEditingController();
     if (initVal != null && initVal.isNotEmpty) {
@@ -154,28 +155,41 @@ class DialogUtil {
     }
     AwesomeDialog(
         context: context,
-        dialogType: DialogType.question,
+        dialogType: dialogType,
         animType: AnimType.scale,
         title: title,
         btnOkText: "提交",
         btnCancelText: "取消",
-        dismissOnTouchOutside: false,
+        dismissOnTouchOutside: true,
         dismissOnBackKeyPress: true,
         autoDismiss: false,
         body: Padding(
           padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            autocorrect: true,
-            controller: editingController,
-            maxLines: 1,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 3, horizontal: 5),
-              isDense: true,
-              hintText: placeholder,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(
+                height: 3,
+              ),
+              TextField(
+                autocorrect: true,
+                controller: editingController,
+                maxLines: 1,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 3, horizontal: 5),
+                  isDense: true,
+                  hintText: placeholder,
+                ),
+              )
+            ],
           ),
         ),
         btnOkOnPress: () {

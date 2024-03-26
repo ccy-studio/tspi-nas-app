@@ -21,6 +21,7 @@ SvgPicture svg(
       "assets/svg/$name.svg",
       colorFilter:
           color != null ? ColorFilter.mode(color, BlendMode.srcIn) : null,
+      // color: color,
       width: width,
       height: height,
     );

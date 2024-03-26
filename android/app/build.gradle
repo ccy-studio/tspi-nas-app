@@ -2,6 +2,7 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+//    id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.22'
 }
 
 def localProperties = new Properties()
@@ -25,7 +26,7 @@ if (flutterVersionName == null) {
 android {
     namespace "com.example.tspi_nas_app"
     compileSdk flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
+    ndkVersion "25.1.8937393"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
