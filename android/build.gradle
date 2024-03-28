@@ -6,10 +6,6 @@ allprojects {
 }
 
 rootProject.buildDir = '../build'
-
-android {
-    namespace 'dev.fluttercommunity.plus.connectivity'
-}
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }

@@ -2,7 +2,7 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-//    id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.22'
+    id "org.jetbrains.kotlin.android"
 }
 
 def localProperties = new Properties()
@@ -25,12 +25,20 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.example.tspi_nas_app"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 34
     ndkVersion "25.1.8937393"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
     }
 
     defaultConfig {
@@ -39,7 +47,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
         minSdkVersion 21
-        targetSdkVersion flutter.targetSdkVersion
+        targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -55,4 +63,10 @@ android {
 
 flutter {
     source '../..'
+}
+
+dependencies {
+//    implementation "androidx.work:work-runtime:2.7.1"
+//    implementation "androidx.annotation:annotation:1.5.0"
+//    implementation "androidx.core:core-ktx:1.9.0"
 }

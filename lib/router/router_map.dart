@@ -1,4 +1,5 @@
 import 'package:animations/animations.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:go_router/go_router.dart';
@@ -40,18 +41,7 @@ final _navTabPagerRouter = StatefulShellRoute.indexedStack(
                           routrerData: state.extra as FileRoutrerDataEntity,
                         ),
                         transitionsBuilder: _anim1);
-                  },
-                  routes: [
-                    GoRoute(
-                      path: '/preview/image/:index',
-                      name: "preview-image",
-                      builder: (context, state) => PreviewImagePage(
-                        files: state.extra as List<FileObjectModel>,
-                        current:
-                            int.parse(state.pathParameters["index"] ?? "0"),
-                      ),
-                    ),
-                  ])
+                  })
             ])
       ]),
       StatefulShellBranch(routes: [
@@ -76,6 +66,14 @@ final GoRouter goRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginPage(),
+    ),
+    GoRoute(
+      path: '/preview/image/:index',
+      name: "preview-image",
+      builder: (context, state) => PreviewImagePage(
+        files: state.extra as List<FileObjectModel>,
+        current: int.parse(state.pathParameters["index"] ?? "0"),
+      ),
     ),
   ],
   redirect: (context, state) async {
@@ -107,10 +105,17 @@ final GoRouter goRouter = GoRouter(
 
 Widget _anim1(BuildContext context, Animation<double> animation,
     Animation<double> secondaryAnimation, Widget child) {
-  return FadeThroughTransition(
-    fillColor: Theme.of(context).scaffoldBackgroundColor,
-    animation: animation,
-    secondaryAnimation: secondaryAnimation,
+  // return FadeThroughTransition(
+  //   fillColor: Theme.of(context).scaffoldBackgroundColor,
+  //   animation: animation,
+  //   secondaryAnimation: secondaryAnimation,
+  //   child: child,
+  // );
+  return SlideTransition(
+    position: Tween<Offset>(
+      begin: const Offset(-1, 0),
+      end: Offset.zero,
+    ).animate(animation),
     child: child,
   );
 }

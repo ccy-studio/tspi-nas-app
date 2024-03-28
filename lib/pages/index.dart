@@ -1,9 +1,6 @@
 import 'package:convex_bottom_bar/convex_bottom_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-import 'package:tspi_nas_app/api/api_map.dart';
-import 'package:tspi_nas_app/provider/global_state.dart';
 
 class IndexHomePage extends StatefulWidget {
   final StatefulNavigationShell navigationShell;

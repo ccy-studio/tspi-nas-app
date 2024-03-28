@@ -1,18 +1,20 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:background_downloader/background_downloader.dart';
 import 'package:event_bus/event_bus.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:go_router/go_router.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
 import 'package:tspi_nas_app/common/page_widget_enum.dart';
+import 'package:tspi_nas_app/model/app/file_event_model.dart';
 import 'package:tspi_nas_app/model/app/file_router_entity.dart';
 import 'package:tspi_nas_app/model/file_object_model.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
@@ -46,6 +48,8 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   final RefreshController _refreshController =
       RefreshController(initialRefresh: true);
 
+  StreamSubscription? _fileObjectSubscription;
+
   final int _pageSize = 30;
   int _pageNum = 1;
   int _total = 0;
@@ -60,6 +64,8 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   @override
   void initState() {
     LogUtil.logInfo("FilePage Init");
+    _fileObjectSubscription =
+        FileObjectDownloaderUtil.eventBus.on().listen(_fileObjectEventListener);
     Future.delayed(Duration.zero).then((value) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
@@ -87,6 +93,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   @override
   void dispose() {
+    _fileObjectSubscription?.cancel();
     disposeDataLine();
     _scrollController.dispose();
     _gridViewScrollController.dispose();
@@ -249,204 +256,227 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Stack(
+    return Scaffold(
+      floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
+      floatingActionButton: SpeedDial(
+        visible: _selectFileIds.isEmpty,
+        icon: Icons.add,
+        activeBackgroundColor: Colors.redAccent,
+        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).primaryColor,
+        activeIcon: Icons.close,
+        spacing: 3,
+        mini: true,
+        childPadding: const EdgeInsets.all(5),
+        spaceBetweenChildren: 4,
+        direction: SpeedDialDirection.up,
+        switchLabelPosition: false,
+        closeManually: false,
+        heroTag: 'speed-dial-hero-tag',
+        useRotationAnimation: true, //旋转动画
+        elevation: 3.0,
+        animationCurve: Curves.elasticInOut,
+        isOpenOnStart: false,
         children: [
-          SizedBox(
-            height: double.infinity,
-            // width: double.infinity,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    BackButton(
-                      onPressed: _onBackClick,
-                    ),
-                    Expanded(
-                        child: _selectFileIds.isNotEmpty
-                            ? Center(
-                                child: Text(
-                                  overflow: TextOverflow.clip,
-                                  "已选择${_selectFileIds.length}个文件",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 15),
-                                ),
-                              )
-                            : const SizedBox()),
-                    _selectFileIds.isEmpty //判断是否展示搜索图标
-                        ? IconButton(
-                            onPressed: () {}, icon: const Icon(Icons.search))
-                        : const SizedBox(),
-                    IconButton(
-                        onPressed: () {}, icon: const Icon(Icons.more_horiz)),
-                  ],
-                ),
-                Container(
-                  margin:
-                      const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        blurRadius: 0.5,
-                        spreadRadius: 0.6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                  child: Row(
-                    children: [
-                      Text(
-                        widget.routrerData.bucketsModel.bucketsName.substring(
-                            0,
-                            min(
-                                10,
-                                widget.routrerData.bucketsModel.bucketsName
-                                    .length)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: List.generate(
-                                widget.routrerData.levelNameList.length,
-                                (index) {
-                              var sp = "";
-                              if (index <
-                                  widget.routrerData.levelNameList.length - 1) {
-                                sp = ">";
-                              }
-                              return GestureDetector(
-                                onTap: () => _onGotoFile(
-                                    widget.routrerData.levelNameList[index]),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 1, horizontal: 1),
-                                  child: Text(
-                                    "${widget.routrerData.levelNameList[index]} $sp",
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.black87),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  child: Text(
-                    widget.routrerData.rootObject.fileName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.only(left: 5, right: 5),
-                  child: SmartRefresher(
-                    controller: _refreshController,
-                    enablePullDown: true,
-                    enablePullUp: _total > _rows.length,
-                    onRefresh: () async {
-                      _rows.clear();
-                      await _loadFiles();
-                      if (mounted) {
-                        setState(() {
-                          _refreshController.refreshCompleted();
-                        });
-                      }
-                    },
-                    onLoading: () async {
-                      if (_total > _rows.length) {
-                        _pageNum++;
-                        await _loadFiles();
-                      }
-                      if (mounted) setState(() {});
-                      _refreshController.loadComplete();
-                    },
-                    child: _getPlanWidget(context) ??
-                        Center(
-                          child: svg(
-                              name: "empty_big",
-                              height:
-                                  MediaQuery.of(context).size.width / 3 * 2),
-                        ),
-                  ),
-                )),
-                _selectFileIds.isNotEmpty //判断是否显示文件多选后的按钮组
-                    ? Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(15),
-                            boxShadow: const [
-                              BoxShadow(
-                                  color: Colors.grey,
-                                  blurRadius: 1,
-                                  offset: Offset(0, 1))
-                            ]),
-                        margin: const EdgeInsets.only(
-                            bottom: 30, left: 5, right: 5),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 10),
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 20,
-                          runSpacing: 10,
-                          children: _getFileActionAuthButton(),
-                        ),
-                      )
-                    : const SizedBox()
-              ],
-            ),
+          SpeedDialChild(
+            // elevation: 1,
+            child: svg(name: "new_folder", height: 30, color: Colors.white),
+            backgroundColor: Colors.greenAccent,
+            foregroundColor: Colors.white,
+            label: '新建文件夹',
+            onTap: _floatBtnNewFolder,
+            onLongPress: () => debugPrint('FIRST CHILD LONG PRESS'),
           ),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Visibility(
-              visible: _selectFileIds.isEmpty,
-              child: Padding(
-                  padding: const EdgeInsets.only(bottom: 20, right: 20),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Ink(
-                      decoration: ShapeDecoration(
-                        color: Theme.of(context).primaryColor,
-                        shape: const CircleBorder(),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(50.0),
-                        onTap: _onClickAddMenu,
-                        child: const Icon(
-                          Icons.add,
-                          size: 40,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  )),
-            ),
+          SpeedDialChild(
+            child: svg(name: "new_file", height: 30, color: Colors.white),
+            backgroundColor: Colors.blueAccent,
+            foregroundColor: Colors.white,
+            label: '选择文件',
+            onTap: () => _floatBtnPickFile(true),
+          ),
+          SpeedDialChild(
+            child: svg(name: "new_media", height: 23, color: Colors.white),
+            backgroundColor: Colors.orangeAccent.shade200,
+            foregroundColor: Colors.white,
+            label: '选择图片视频',
+            onTap: () => _floatBtnPickFile(false),
           ),
         ],
+      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SizedBox(
+              height: double.infinity,
+              // width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      BackButton(
+                        onPressed: _onBackClick,
+                      ),
+                      Expanded(
+                          child: _selectFileIds.isNotEmpty
+                              ? Center(
+                                  child: Text(
+                                    overflow: TextOverflow.clip,
+                                    "已选择${_selectFileIds.length}个文件",
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15),
+                                  ),
+                                )
+                              : const SizedBox()),
+                      _selectFileIds.isEmpty //判断是否展示搜索图标
+                          ? IconButton(
+                              onPressed: () {}, icon: const Icon(Icons.search))
+                          : const SizedBox(),
+                      IconButton(
+                          onPressed: () {}, icon: const Icon(Icons.more_horiz)),
+                    ],
+                  ),
+                  Container(
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.2),
+                          blurRadius: 0.5,
+                          spreadRadius: 0.6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                    child: Row(
+                      children: [
+                        Text(
+                          widget.routrerData.bucketsModel.bucketsName.substring(
+                              0,
+                              min(
+                                  10,
+                                  widget.routrerData.bucketsModel.bucketsName
+                                      .length)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            controller: _scrollController,
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: List.generate(
+                                  widget.routrerData.levelNameList.length,
+                                  (index) {
+                                var sp = "";
+                                if (index <
+                                    widget.routrerData.levelNameList.length -
+                                        1) {
+                                  sp = ">";
+                                }
+                                return GestureDetector(
+                                  onTap: () => _onGotoFile(
+                                      widget.routrerData.levelNameList[index]),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 1, horizontal: 1),
+                                    child: Text(
+                                      "${widget.routrerData.levelNameList[index]} $sp",
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.black87),
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 15, vertical: 10),
+                    child: Text(
+                      widget.routrerData.rootObject.fileName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        color: Colors.black,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                      child: Padding(
+                    padding: const EdgeInsets.only(left: 5, right: 5),
+                    child: SmartRefresher(
+                      controller: _refreshController,
+                      enablePullDown: true,
+                      enablePullUp: _total > _rows.length,
+                      onRefresh: () async {
+                        _rows.clear();
+                        await _loadFiles();
+                        if (mounted) {
+                          setState(() {
+                            _refreshController.refreshCompleted();
+                          });
+                        }
+                      },
+                      onLoading: () async {
+                        if (_total > _rows.length) {
+                          _pageNum++;
+                          await _loadFiles();
+                        }
+                        if (mounted) setState(() {});
+                        _refreshController.loadComplete();
+                      },
+                      child: _getPlanWidget(context) ??
+                          Center(
+                            child: svg(
+                                name: "empty_big",
+                                height:
+                                    MediaQuery.of(context).size.width / 3 * 2),
+                          ),
+                    ),
+                  )),
+                  _selectFileIds.isNotEmpty //判断是否显示文件多选后的按钮组
+                      ? Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: const [
+                                BoxShadow(
+                                    color: Colors.grey,
+                                    blurRadius: 1,
+                                    offset: Offset(0, 1))
+                              ]),
+                          margin: const EdgeInsets.only(
+                              bottom: 30, left: 5, right: 5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 10),
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 20,
+                            runSpacing: 10,
+                            children: _getFileActionAuthButton(),
+                          ),
+                        )
+                      : const SizedBox()
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -478,15 +508,19 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
       //文件预览
       //1. 图片 视频 音频 文字可以在线预览
       if (model.fileContentType!.startsWith("image")) {
+        var images = _rows
+            .where((element) =>
+                element.fileContentType?.startsWith("image") ?? false)
+            .toList();
         int index = 0;
-        for (int i = 0; i < _rows.length; i++) {
-          if (_rows[i].id == model.id) {
+        for (int i = 0; i < images.length; i++) {
+          if (images[i].id == model.id) {
             index = i;
             break;
           }
         }
         context.pushNamed("preview-image",
-            extra: _rows, pathParameters: {"index": index.toString()});
+            extra: images, pathParameters: {"index": index.toString()});
       }
     }
   }
@@ -579,27 +613,13 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         });
   }
 
-  ///下载
+  ///下载文件
   void _selectedBtnGroupDownload() async {
-    //获取系统权限
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.storage,
-      Permission.photos,
-      Permission.videos,
-    ].request();
+    // //获取系统权限
+    if (await FileObjectDownloaderUtil.requestStorePermission() == false) {
+      return;
+    }
 
-    if (statuses[Permission.storage] != PermissionStatus.granted) {
-      _openSetting("授权失败，请在设置手动打开文件存储权限！");
-      return;
-    }
-    if (statuses[Permission.photos] != PermissionStatus.granted) {
-      _openSetting("授权失败，请在设置手动打开媒体文件访问权限！");
-      return;
-    }
-    if (statuses[Permission.videos] != PermissionStatus.granted) {
-      _openSetting("授权失败，请在设置手动打开媒体文件访问权限！");
-      return;
-    }
     //下载开始
     if (_selectFileIds.isEmpty) {
       return;
@@ -610,24 +630,21 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         if (file.isDir) {
           continue;
         }
-        var task = FileObjectDownloaderUtil.createDownloadTask(
+        var task = await FileObjectDownloaderUtil.createDownloadTask(
           await ApiMap.getDownloadFileSignInfo(objectId: id),
           file,
           context,
         );
-        FileObjectDownloaderUtil.pushQueueDownload(task);
+        FileObjectDownloaderUtil.pushQueue(task);
       }
     }
+    setState(() {
+      _selectFileIds.clear();
+      for (var element in _rows) {
+        element.check = false;
+      }
+    });
     EasyLoading.showToast("已添加到下载队列!");
-    _selectFileIds.clear();
-    setState(() {});
-  }
-
-  void _openSetting(String message) {
-    if (mounted) {
-      DialogUtil.showAlertMessageDialog(context, message,
-          call: () => openAppSettings());
-    }
   }
 
   ///分享
@@ -768,5 +785,65 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
             ],
           ),
         )).show();
+  }
+
+  ///---------------浮动按钮组点击事件------------------------------//
+  ///
+  ///新建文件夹、选择文件、选择媒体文件
+  ///
+
+  ///新建文件夹
+  void _floatBtnNewFolder() {
+    DialogUtil.showInputDialog(
+      context,
+      dialogType: DialogType.noHeader,
+      placeholder: "请输入文件夹名称",
+      title: "新建文件夹",
+      call: (value) async {
+        if (await ApiMap.mkdir(
+            parentId: widget.routrerData.rootObject.id, fileName: value)) {
+          _pageNum = 1;
+          _rows.clear();
+          _refreshController.requestRefresh();
+        } else {
+          EasyLoading.showToast("创建失败");
+        }
+      },
+    );
+  }
+
+  ///选择文件
+  void _floatBtnPickFile(bool all) async {
+    if (await FileObjectDownloaderUtil.requestStorePermission()) {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+          withData: false,
+          withReadStream: true,
+          allowMultiple: true,
+          type: all ? FileType.any : FileType.media);
+      LogUtil.logInfo("选择的文件: $result");
+      if (result != null) {
+        for (String? path in result.paths) {
+          if (path != null) {
+            var task = await FileObjectDownloaderUtil.createUploadTask(
+                widget.routrerData.rootObject.id, path, context);
+            FileObjectDownloaderUtil.pushQueue(task);
+          }
+        }
+        EasyLoading.showToast("成功加入到上传队列");
+      }
+    }
+  }
+
+  ///文件上传Event监听
+  void _fileObjectEventListener(dynamic event) {
+    if (event is FileEventStatus) {
+      if (event.status == TaskStatus.complete) {
+        _rows.clear();
+        _pageNum = 1;
+        _refreshController.requestRefresh();
+      } else if (event.status == TaskStatus.failed) {
+        EasyLoading.showToast("文件上传失败", duration: const Duration(seconds: 3));
+      }
+    }
   }
 }

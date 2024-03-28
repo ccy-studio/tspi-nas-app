@@ -9,7 +9,7 @@ import 'package:tspi_nas_app/router/router_map.dart';
 void main() {
   runApp(MultiProvider(
     providers: [ChangeNotifierProvider(create: (_) => GlobalStateProvider())],
-    child: MyApp(),
+    child: const MyApp(),
   ));
 }
 
