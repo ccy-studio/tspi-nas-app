@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 class TextHedaerWidget extends StatelessWidget {
   final String title;
+  final Widget? expand;
 
-  const TextHedaerWidget({super.key, required this.title});
+  const TextHedaerWidget({super.key, required this.title, this.expand});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +20,8 @@ class TextHedaerWidget extends StatelessWidget {
                 fontSize: 23,
                 color: Colors.black87,
                 fontWeight: FontWeight.bold),
-          )
+          ),
+          Expanded(child: expand ?? const SizedBox())
         ],
       ),
     );

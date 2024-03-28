@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:back_button_interceptor/back_button_interceptor.dart';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:event_bus/event_bus.dart';
 import 'package:file_picker/file_picker.dart';
@@ -63,7 +64,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   @override
   void initState() {
-    LogUtil.logInfo("FilePage Init");
     _fileObjectSubscription =
         FileObjectDownloaderUtil.eventBus.on().listen(_fileObjectEventListener);
     Future.delayed(Duration.zero).then((value) {
@@ -74,8 +74,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
       );
     });
     _streamSubscription = _filePageEvent.on<String>().listen((event) {
-      LogUtil.logInfo(
-          "===>FilePage listen ${widget.routrerData.levelNameList}");
       setState(() {
         _pageNum = 1;
         _total = 0;
@@ -89,6 +87,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
           ));
     });
     super.initState();
+    BackButtonInterceptor.add(_onSysBackInterceptor);
   }
 
   @override
@@ -99,8 +98,19 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
     _gridViewScrollController.dispose();
     _streamSubscription?.cancel();
     _refreshController.dispose();
-    LogUtil.logInfo("FilePage Dispose");
+    BackButtonInterceptor.remove(_onSysBackInterceptor);
     super.dispose();
+  }
+
+  bool _onSysBackInterceptor(bool stopDefaultButtonEvent, RouteInfo info) {
+    // 在这里执行你想要的操作
+    // 如果你想要阻止返回操作，返回true；如果允许返回操作，返回false
+    LogUtil.logInfo("router: ${info.currentRoute(context)?.settings}");
+    if (widget.routrerData.trees.length != 1) {
+      _onBackClick();
+      return true;
+    }
+    return false;
   }
 
   ///加载文件列表数据
@@ -561,30 +571,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
     }
   }
 
-  ///点击右下角悬浮按钮的事件
-  void _onClickAddMenu() {
-    showModalBottomSheet(
-        isDismissible: true,
-        context: context,
-        isScrollControlled: true,
-        elevation: 10,
-        barrierColor: Colors.grey.withOpacity(0.5),
-        backgroundColor: Colors.white,
-        builder: (BuildContext context) {
-          return Container(
-            decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(10)),
-            height: 100,
-            child: Checkbox(
-              activeColor: Colors.blueAccent,
-              value: true,
-              onChanged: (value) {},
-              shape: CircleBorder(), //这里就是实现圆形的设置
-            ),
-          );
-        });
-  }
-
   ///---------------文件选中的按钮组点击事件------------------------------//
   ///
   ///下载、分享、删除、复制、移动、重命名、详细信息
@@ -815,12 +801,13 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   ///选择文件
   void _floatBtnPickFile(bool all) async {
     if (await FileObjectDownloaderUtil.requestStorePermission()) {
+      EasyLoading.show();
       FilePickerResult? result = await FilePicker.platform.pickFiles(
           withData: false,
           withReadStream: true,
           allowMultiple: true,
           type: all ? FileType.any : FileType.media);
-      LogUtil.logInfo("选择的文件: $result");
+      EasyLoading.dismiss();
       if (result != null) {
         for (String? path in result.paths) {
           if (path != null) {

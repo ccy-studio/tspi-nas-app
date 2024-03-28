@@ -21,6 +21,7 @@
 
     <!--android:name="${applicationName}"-->
     <application
+        android:enableOnBackInvokedCallback="false"
         android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"

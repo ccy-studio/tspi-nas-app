@@ -44,9 +44,16 @@ class FileObjectDownloaderUtil {
   static void _listener(TaskUpdate event) {
     switch (event) {
       case TaskStatusUpdate():
+        FileDownloader().database.recordForId(event.task.taskId).then((value) {
+          if (value != null) {
+            FileDownloader()
+                .database
+                .updateRecord(value.copyWith(status: event.status));
+          }
+        });
         eventBus.fire(FileEventStatus(status: event.status, task: event.task));
-        LogUtil.logInfo(
-            'Status update for ${event.task.filename} with status ${event.status}');
+        // LogUtil.logInfo(
+        //     'Status update for ${event.task.filename} with status ${event.status}');
         if (event.status == TaskStatus.complete) {
           //完成
           if (event.task is DownloadTask) {
@@ -57,11 +64,19 @@ class FileObjectDownloaderUtil {
         }
         break;
       case TaskProgressUpdate():
+        FileDownloader().database.recordForId(event.task.taskId).then((value) {
+          if (value != null) {
+            FileDownloader()
+                .database
+                .updateRecord(value.copyWith(progress: event.progress));
+          }
+        });
         eventBus.fire(FileEventProgress(task: event.task, progress: event));
-        LogUtil.logInfo(
-            'Progress update for ${event.task.filename} with progress ${event.progress}');
+        // LogUtil.logInfo(
+        //     'Progress update for ${event.task.filename} with progress ${event.progress}');
         break;
     }
+    eventBus.fire(event);
   }
 
   ///下载完成后的回调处理
@@ -79,6 +94,8 @@ class FileObjectDownloaderUtil {
       }
       if (file.fileContentType!.startsWith("audio")) {
         storage = SharedStorage.audio;
+      } else {
+        return;
       }
 
       final path = await FileDownloader()

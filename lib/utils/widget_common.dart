@@ -108,7 +108,7 @@ class DialogUtil {
       Navigator.pop(context);
     }
     _isLoading = true;
-    double size = MediaQuery.of(context).size.width / 2;
+    double size = MediaQuery.of(context).size.width / 2 - 10;
     showDialog(
         context: context,
         builder: (context) {
