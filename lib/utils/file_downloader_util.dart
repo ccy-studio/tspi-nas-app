@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:background_downloader/background_downloader.dart';
 import 'package:background_downloader_sql/background_downloader_sql.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:event_bus/event_bus.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -183,20 +184,34 @@ class FileObjectDownloaderUtil {
   static Future<bool> requestStorePermission() async {
     // //获取系统权限
     if (Platform.isAndroid) {
-      bool isShown = await ph.Permission.storage.shouldShowRequestRationale;
+      DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      LogUtil.logInfo("SDK:${androidInfo.version.sdkInt}");
+      if (androidInfo.version.sdkInt > 32) {
+        var plist = await [
+          ph.Permission.photos,
+          ph.Permission.videos,
+          ph.Permission.audio,
+          ph.Permission.manageExternalStorage,
+        ].request();
+
+        plist.forEach((permission, status) async {
+          if (status.isGranted) {
+            LogUtil.logInfo('$permission 权限已授予');
+          } else if (status.isDenied) {
+            LogUtil.logInfo('$permission 权限被拒绝');
+            await permission.request();
+          } else if (status.isPermanentlyDenied) {
+            LogUtil.logInfo('$permission 权限被永久拒绝');
+          }
+        });
+      }
+      // bool isShown = await ph.Permission.storage.shouldShowRequestRationale;
       var status = await ph.Permission.storage.status;
       if (status.isDenied) {
-        //权限没允许
-        //如果弹框不在出现了，那就跳转到设置页。
-        //如果弹框还能出现，那就不用管了，申请权限就行了
-        if (!isShown) {
+        if (!(await ph.Permission.storage.request().isGranted)) {
           _openSetting("获取存储权限失败请手动在设置里打开!");
           return false;
-        } else {
-          if (!(await ph.Permission.storage.request().isGranted)) {
-            ToastUtil.show(msg: "请允许存储权限，并重试！");
-            return false;
-          }
         }
       }
     }

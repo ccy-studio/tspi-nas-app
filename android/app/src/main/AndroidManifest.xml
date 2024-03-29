@@ -22,12 +22,13 @@
     <!--android:name="${applicationName}"-->
     <application
         android:enableOnBackInvokedCallback="false"
+        android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:label="油条云">
         <activity
-            android:name=".MainActivity"
+            android:name="com.saisaiwa.tspi_nas_app.MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:exported="true"
             android:hardwareAccelerated="true"

@@ -69,7 +69,10 @@ class _TaskPageState extends State<TaskPage>
                   _onRefresh();
                   ToastUtil.show(msg: "清空成功");
                 },
-                icon: const Icon(Icons.cleaning_services_rounded)),
+                icon: const Icon(
+                  Icons.cleaning_services_rounded,
+                  color: Colors.grey,
+                )),
           ),
         ),
         Expanded(

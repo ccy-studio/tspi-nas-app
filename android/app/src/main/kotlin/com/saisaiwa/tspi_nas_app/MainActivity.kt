@@ -1,4 +1,4 @@
-package com.example.tspi_nas_app
+package com.saisaiwa.tspi_nas_app
 
 import io.flutter.embedding.android.FlutterActivity
 

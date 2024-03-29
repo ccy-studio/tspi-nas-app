@@ -25,6 +25,24 @@ class _LoginPageState extends State<LoginPage> {
   final GlobalKey _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    SpUtil.getVal("account").then((value) {
+      var val = value?["account"];
+      if (val != null) {
+        account.value = TextEditingValue(text: val);
+      }
+    });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    account.dispose();
+    pwd.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -168,6 +186,8 @@ class _LoginPageState extends State<LoginPage> {
         var token = value.data["tokenPair"]["accessToken"];
         SpUtil.setToken(token);
         context.read<GlobalStateProvider>().setUserInfo(userInfo);
+        //保存用户名
+        SpUtil.save("account", {"account": account.text});
         LogUtil.logInfo("UserInfo:$userInfo,Token:$token");
         EasyLoading.dismiss();
         context.go("/");

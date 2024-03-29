@@ -30,6 +30,7 @@ class _IndexHomePageState extends State<IndexHomePage> {
         items: const [
           TabItem(icon: Icons.storage_rounded, title: '存储'),
           TabItem(icon: Icons.file_download_outlined, title: '任务队列'),
+          TabItem(icon: Icons.share, title: '我的分享'),
           // TabItem(icon: Icons.account_circle_rounded, title: '我的'),
           TabItem(icon: Icons.settings, title: '设置'),
         ],

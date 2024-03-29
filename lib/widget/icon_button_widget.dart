@@ -16,6 +16,7 @@ class IconTextButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         radius: 10,

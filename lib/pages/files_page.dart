@@ -8,6 +8,7 @@ import 'package:background_downloader/background_downloader.dart';
 import 'package:event_bus/event_bus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:go_router/go_router.dart';
@@ -262,6 +263,120 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
           textStyle: textStyle));
     }
     return list;
+  }
+
+  String _shareExprieTemp = "7";
+
+  ///创建文件分享的访问密码
+  void _showCreateShareDialog() {
+    final GlobalKey _formKey = GlobalKey<FormState>();
+    final TextEditingController _textControllr = TextEditingController();
+    AwesomeDialog(
+      // useRootNavigator: true,
+      context: context,
+      dialogType: DialogType.noHeader,
+      animType: AnimType.scale,
+      btnOkText: "提交",
+      btnCancelText: "取消",
+      dismissOnTouchOutside: true,
+      dismissOnBackKeyPress: true,
+      // autoDismiss: true,
+      body: Container(
+        height: MediaQuery.of(context).size.height / 4,
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "创建文件分享",
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(
+              height: 7,
+            ),
+            Expanded(
+                child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: "过期时间"),
+                      validator: (v) {
+                        return v!.trim().isNotEmpty ? null : "请选择过期时间";
+                      },
+                      value: '7',
+                      hint: const Text("请选择过期时间"),
+                      onChanged: (value) {
+                        _shareExprieTemp = value ?? "7";
+                      },
+                      items: const [
+                        DropdownMenuItem(
+                          value: "7",
+                          child: Text("7天"),
+                        ),
+                        DropdownMenuItem(
+                          value: "30",
+                          child: Text("30天"),
+                        ),
+                        DropdownMenuItem(
+                          value: "-1",
+                          child: Text("永久"),
+                        )
+                      ]),
+                  const SizedBox(
+                    height: 6,
+                  ),
+                  TextFormField(
+                    controller: _textControllr,
+                    maxLines: 1,
+                    keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: "访问密码",
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 3, horizontal: 5),
+                      isDense: true,
+                      hintText: "访问密码，留空则无密码",
+                    ),
+                  )
+                ],
+              ),
+            ))
+          ],
+        ),
+      ),
+      btnOkOnPress: () async {
+        if ((_formKey.currentState as FormState).validate()) {
+          var pwd = _textControllr.text;
+          var share = await ApiMap.createFileObjectShare(
+              objectId: _selectFileIds.first,
+              exprie: int.parse(_shareExprieTemp),
+              pwd: pwd);
+          var url = ApiMap.getShareSymlinkUrl(share);
+          AwesomeDialog(
+            context: context,
+            title: "分享成功",
+            desc: "分享链接: $url",
+            dialogType: DialogType.success,
+            dismissOnBackKeyPress: true,
+            autoDismiss: true,
+            dismissOnTouchOutside: true,
+            btnOkText: "复制到剪切板",
+            btnOkOnPress: () => Clipboard.setData(ClipboardData(text: url)),
+          ).show();
+          _selectFileIds.clear();
+          for (var element in _rows) {
+            element.check = false;
+          }
+          setState(() {});
+        }
+      },
+      btnCancelOnPress: () {},
+    ).show();
   }
 
   @override
@@ -634,7 +749,9 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   }
 
   ///分享
-  void _selectedBtnGroupShare() {}
+  void _selectedBtnGroupShare() {
+    _showCreateShareDialog();
+  }
 
   ///删除
   void _selectedBtnGroupDel() {

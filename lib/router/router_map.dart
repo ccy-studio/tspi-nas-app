@@ -15,6 +15,7 @@ import 'package:tspi_nas_app/pages/login_page.dart';
 import 'package:tspi_nas_app/pages/my_page.dart';
 import 'package:tspi_nas_app/pages/preview_image.dart';
 import 'package:tspi_nas_app/pages/setting_page.dart';
+import 'package:tspi_nas_app/pages/share_page.dart';
 import 'package:tspi_nas_app/pages/task_page.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
 import 'package:tspi_nas_app/utils/log_util.dart';
@@ -49,6 +50,12 @@ final _navTabPagerRouter = StatefulShellRoute.indexedStack(
         GoRoute(
           path: "/task",
           builder: (context, state) => const TaskPage(),
+        )
+      ]),
+      StatefulShellBranch(routes: [
+        GoRoute(
+          path: "/share",
+          builder: (context, state) => const SharePage(),
         )
       ]),
       StatefulShellBranch(routes: [

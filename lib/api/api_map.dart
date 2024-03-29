@@ -5,12 +5,14 @@ import "package:tspi_nas_app/application.dart";
 import "package:tspi_nas_app/model/base_response.dart";
 import "package:tspi_nas_app/model/buckets_model.dart";
 import "package:tspi_nas_app/model/file_object_model.dart";
+import "package:tspi_nas_app/model/file_share_model.dart";
 import "package:tspi_nas_app/model/file_sign_model.dart";
 import "package:tspi_nas_app/model/page_model.dart";
 import "package:tspi_nas_app/model/user_info_model.dart";
 import "package:tspi_nas_app/provider/global_state.dart";
 import "package:tspi_nas_app/utils/object_util.dart";
 import "package:tspi_nas_app/utils/sp_util.dart";
+import "package:tspi_nas_app/utils/time.dart";
 import "package:uuid/uuid.dart";
 
 import "../utils/http_util.dart";
@@ -167,5 +169,50 @@ class ApiMap {
       "expire": "${sign.expireTime}",
     });
     return "${Application.BASE_URL}/file/s/download?$query";
+  }
+
+  ///创建文件外链分享
+  static Future<FileShareInfoVo> createFileObjectShare(
+      {required int objectId, required int exprie, required String pwd}) async {
+    String? exprieStr;
+    if (exprie > 0) {
+      exprieStr =
+          DateUtil.formatDate(DateTime.now().add(Duration(days: exprie)));
+    }
+    return HttpUtil.request("/fs/share", "post", data: {
+      "objectId": objectId,
+      "expirationTime": exprieStr,
+      "accessPassword": pwd,
+      "symlink": true
+    }).then((value) {
+      return FileShareInfoVo.fromMap(value.data);
+    });
+  }
+
+  ///删除一个分享通过ID
+  static Future<void> deleteFileObjectShare({required int id}) async {
+    return HttpUtil.request("/fs/share", "delete", data: {
+      "id": id,
+    }).then((value) {
+      return;
+    });
+  }
+
+  ///获取用户的创建分享数据
+  static Future<PageModel<FileShareInfoVo>> getFileObjectShareAll({
+    String? fileName,
+    int? pageNum = 1,
+    int? pageSize = 20,
+  }) async {
+    return HttpUtil.request("/fs/share", "get", data: {"fileName": fileName})
+        .then((value) {
+      return PageModel<FileShareInfoVo>.fromMap(
+          value.data, (v) => FileShareInfoVo.fromMap(v));
+    });
+  }
+
+  ///转换获取分享的直链URL访问地址
+  static String getShareSymlinkUrl(FileShareInfoVo infoVo) {
+    return "${Application.BASE_URL}/share/object/${infoVo.signKey}";
   }
 }
