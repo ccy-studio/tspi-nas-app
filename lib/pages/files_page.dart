@@ -31,8 +31,6 @@ import 'package:tspi_nas_app/widget/icon_button_widget.dart';
 
 final EventBus _filePageEvent = EventBus();
 
-// enum _DataLine { select }
-
 class FileObjectPage extends StatefulWidget {
   final FileRoutrerDataEntity routrerData;
 
@@ -65,6 +63,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   @override
   void initState() {
+    LogUtil.logInfo("进入initState");
     _fileObjectSubscription =
         FileObjectDownloaderUtil.eventBus.on().listen(_fileObjectEventListener);
     Future.delayed(Duration.zero).then((value) {
@@ -73,22 +72,24 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         duration: const Duration(seconds: 1),
         curve: Curves.ease,
       );
-    });
-    _streamSubscription = _filePageEvent.on<String>().listen((event) {
-      setState(() {
-        _pageNum = 1;
-        _total = 0;
-        _rows.clear();
-        _loadFiles();
+
+      _streamSubscription = _filePageEvent.on<String>().listen((event) {
+        setState(() {
+          _pageNum = 1;
+          _total = 0;
+          _rows.clear();
+          _loadFiles();
+        });
+        Future.delayed(Duration.zero)
+            .then((value) => _scrollController.animateTo(
+                  _scrollController.position.maxScrollExtent,
+                  duration: const Duration(seconds: 1),
+                  curve: Curves.ease,
+                ));
       });
-      Future.delayed(Duration.zero).then((value) => _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(seconds: 1),
-            curve: Curves.ease,
-          ));
+      BackButtonInterceptor.add(_onSysBackInterceptor);
     });
     super.initState();
-    BackButtonInterceptor.add(_onSysBackInterceptor);
   }
 
   @override
@@ -180,10 +181,10 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
                       height: 10,
                     ),
                     Transform.scale(
-                        scale: 0.7,
+                        scale: 0.9,
                         child: SizedBox(
                           width: double.infinity,
-                          height: 12,
+                          height: 15,
                           child: Checkbox(
                             activeColor: Colors.blueAccent,
                             value: f.check,
@@ -548,6 +549,8 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
                       enablePullDown: true,
                       enablePullUp: _total > _rows.length,
                       onRefresh: () async {
+                        LogUtil.logInfo("执行SmartRefresher内的刷新函数");
+                        _pageNum = 1;
                         _rows.clear();
                         await _loadFiles();
                         if (mounted) {
@@ -561,8 +564,11 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
                           _pageNum++;
                           await _loadFiles();
                         }
-                        if (mounted) setState(() {});
-                        _refreshController.loadComplete();
+                        if (mounted) {
+                          setState(() {
+                            _refreshController.loadComplete();
+                          });
+                        }
                       },
                       child: _getPlanWidget(context) ??
                           Center(
