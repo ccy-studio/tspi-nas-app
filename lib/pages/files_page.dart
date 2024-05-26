@@ -35,7 +35,7 @@ class FileObjectPage extends StatefulWidget {
   final FileRoutrerDataEntity routrerData;
 
   FileObjectPage({super.key, required this.routrerData}) {
-    _filePageEvent.fire("refresh");
+    _filePageEvent.fire(routrerData.rootObject);
   }
 
   @override
@@ -54,7 +54,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   int _pageNum = 1;
   int _total = 0;
   final List<FileObjectModel> _rows = List.empty(growable: true);
-  StreamSubscription<String>? _streamSubscription;
+  StreamSubscription<FileObjectModel>? _streamSubscription;
 
   final Set<int> _selectFileIds = LinkedHashSet.identity();
 
@@ -63,7 +63,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   @override
   void initState() {
-    LogUtil.logInfo("进入initState");
     _fileObjectSubscription =
         FileObjectDownloaderUtil.eventBus.on().listen(_fileObjectEventListener);
     Future.delayed(Duration.zero).then((value) {
@@ -73,12 +72,14 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         curve: Curves.ease,
       );
 
-      _streamSubscription = _filePageEvent.on<String>().listen((event) {
+      _streamSubscription =
+          _filePageEvent.on<FileObjectModel>().listen((FileObjectModel model) {
+        if (model != widget.routrerData.rootObject) {
+          return;
+        }
         setState(() {
           _pageNum = 1;
-          _total = 0;
-          _rows.clear();
-          _loadFiles();
+          _loadFiles(clear: true);
         });
         Future.delayed(Duration.zero)
             .then((value) => _scrollController.animateTo(
@@ -107,7 +108,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   bool _onSysBackInterceptor(bool stopDefaultButtonEvent, RouteInfo info) {
     // 在这里执行你想要的操作
     // 如果你想要阻止返回操作，返回true；如果允许返回操作，返回false
-    LogUtil.logInfo("router: ${info.currentRoute(context)?.settings}");
+    // LogUtil.logInfo("router: ${info.currentRoute(context)?.settings}");
     if (widget.routrerData.trees.length != 1) {
       _onBackClick();
       return true;
@@ -116,7 +117,10 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   }
 
   ///加载文件列表数据
-  Future<void> _loadFiles() async {
+  Future<void> _loadFiles({bool clear = false}) async {
+    if (!mounted) {
+      return;
+    }
     var data = widget.routrerData;
     ApiMap.getFileObjectList(
             parentId: data.rootObject.id,
@@ -124,6 +128,9 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
             pageNum: _pageNum)
         .then((value) {
       _total = value.total;
+      if (clear) {
+        _rows.clear();
+      }
       _rows.addAll(value.rows);
       if (_pageNum == 1) {
         _selectFileIds.clear();
