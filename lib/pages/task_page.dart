@@ -10,6 +10,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:tspi_nas_app/utils/file_api.dart';
+import 'package:tspi_nas_app/utils/icon_util.dart';
+import 'package:tspi_nas_app/utils/widget_common.dart';
 import 'package:tspi_nas_app/widget/text_head_widget.dart';
 
 class TaskPage extends StatefulWidget {
@@ -50,43 +52,75 @@ class _TaskPageState extends State<TaskPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        const TextHedaerWidget(
+        TextHedaerWidget(
           title: "传输任务",
+          expand: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+                onPressed: _onClearDone,
+                icon: svg(name: "clear", height: 20),
+                label: const Text(
+                  "清空已完成",
+                  style: TextStyle(fontSize: 10, color: Colors.black54),
+                )),
+          ),
         ),
         Expanded(
-            child: ListView.builder(
-          itemBuilder: (context, index) {
-            var item = _rows[index];
-            String type = item is FileApiDownloadTask ? "下载" : "上传";
-            String status = "";
-            Icon icon = item is FileApiDownloadTask
-                ? const Icon(Icons.download)
-                : const Icon(Icons.upload);
-            switch (item.status) {
-              case FileApiTaskStatus.running:
-                status = item.percentage ?? "0%";
-                break;
-              case FileApiTaskStatus.queue:
-                status = "等待中";
-                break;
-              case FileApiTaskStatus.success:
-                status = "完成";
-                break;
-              case FileApiTaskStatus.error:
-                status = "失败";
-                break;
-            }
-            return ListTile(
-              leading: icon,
-              title: Text(
-                item.fileName,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(type),
-              trailing: Text(status),
-            );
-          },
-          itemCount: _rows.length,
+            child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: _rows.isEmpty
+              ? Center(
+                  child: svg(
+                      name: "empty_big",
+                      width: MediaQuery.of(context).size.width / 3 * 2),
+                )
+              : ListView.builder(
+                  itemBuilder: (context, index) {
+                    var item = _rows[index];
+                    String type = item is FileApiDownloadTask ? "下载" : "上传";
+                    String status = "";
+                    Widget icon = svg(
+                        name: getFileIcon("unknown", item.fileName),
+                        height: 30);
+                    switch (item.status) {
+                      case FileApiTaskStatus.running:
+                        status = item.percentage ?? "0%";
+                        break;
+                      case FileApiTaskStatus.queue:
+                        status = "等待中";
+                        break;
+                      case FileApiTaskStatus.success:
+                        status = "完成";
+                        break;
+                      case FileApiTaskStatus.error:
+                        status = "失败";
+                        break;
+                    }
+                    return ListTile(
+                      leading: icon,
+                      title: Text(
+                        item.fileName,
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.black),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        "$type ${item.endDate ?? item.addDate}",
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      trailing: Text(status),
+                      onTap: () {
+                        if (item is FileApiDownloadTask &&
+                            item.filePath != null &&
+                            item.status == FileApiTaskStatus.success) {
+                          DialogUtil.showAlertMessageDialog(
+                              context, "保存目录: ${item.filePath}");
+                        }
+                      },
+                    );
+                  },
+                  itemCount: _rows.length,
+                ),
         ))
       ],
     );
@@ -98,9 +132,18 @@ class _TaskPageState extends State<TaskPage>
     _rows.addAll(FileApiUtil.uploadTaskPool);
     _rows.sort((a, b) {
       if (a.status == FileApiTaskStatus.running) {
-        return 1;
+        return -1;
       }
-      return -1;
+      return 1;
     });
+    setState(() {});
+  }
+
+  void _onClearDone() {
+    FileApiUtil.downloadTaskPool
+        .removeWhere((element) => element.status == FileApiTaskStatus.success);
+    FileApiUtil.uploadTaskPool
+        .removeWhere((element) => element.status == FileApiTaskStatus.success);
+    _onRefresh();
   }
 }

@@ -14,6 +14,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
+import 'package:tspi_nas_app/application.dart';
+import 'package:tspi_nas_app/common/global_event.dart';
 import 'package:tspi_nas_app/common/page_widget_enum.dart';
 import 'package:tspi_nas_app/model/app/file_router_entity.dart';
 import 'package:tspi_nas_app/model/file_object_model.dart';
@@ -72,7 +74,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
       _streamSubscription =
           _filePageEvent.on<FileObjectModel>().listen((FileObjectModel model) {
-        if (model != widget.routrerData.rootObject) {
+        if (model.id != widget.routrerData.rootObject.id) {
           return;
         }
         setState(() {
@@ -362,6 +364,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
               objectId: _selectFileIds.first,
               exprie: int.parse(_shareExprieTemp),
               pwd: pwd);
+          Application.globalEventBus.fire(EventShareUpdate());
           var url = ApiMap.getShareSymlinkUrl(share);
           AwesomeDialog(
             context: context,
@@ -372,7 +375,8 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
             autoDismiss: true,
             dismissOnTouchOutside: true,
             btnOkText: "复制到剪切板",
-            btnOkOnPress: () => Clipboard.setData(ClipboardData(text: url)),
+            btnOkOnPress: () =>
+                Clipboard.setData(ClipboardData(text: "$url?pwd=$pwd")),
           ).show();
           _selectFileIds.clear();
           for (var element in _rows) {
@@ -389,51 +393,55 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
-      floatingActionButton: SpeedDial(
-        visible: _selectFileIds.isEmpty,
-        icon: Icons.add,
-        activeBackgroundColor: Colors.redAccent,
-        foregroundColor: Colors.white,
-        backgroundColor: Theme.of(context).primaryColor,
-        activeIcon: Icons.close,
-        spacing: 3,
-        mini: true,
-        childPadding: const EdgeInsets.all(5),
-        spaceBetweenChildren: 4,
-        direction: SpeedDialDirection.up,
-        switchLabelPosition: false,
-        closeManually: false,
-        heroTag: 'speed-dial-hero-tag',
-        useRotationAnimation: true, //旋转动画
-        elevation: 3.0,
-        animationCurve: Curves.elasticInOut,
-        isOpenOnStart: false,
-        children: [
-          SpeedDialChild(
-            // elevation: 1,
-            child: svg(name: "new_folder", height: 30, color: Colors.white),
-            backgroundColor: Colors.greenAccent,
-            foregroundColor: Colors.white,
-            label: '新建文件夹',
-            onTap: _floatBtnNewFolder,
-            onLongPress: () => debugPrint('FIRST CHILD LONG PRESS'),
-          ),
-          SpeedDialChild(
-            child: svg(name: "new_file", height: 30, color: Colors.white),
-            backgroundColor: Colors.blueAccent,
-            foregroundColor: Colors.white,
-            label: '选择文件',
-            onTap: () => _floatBtnPickFile(true),
-          ),
-          SpeedDialChild(
-            child: svg(name: "new_media", height: 23, color: Colors.white),
-            backgroundColor: Colors.orangeAccent.shade200,
-            foregroundColor: Colors.white,
-            label: '选择图片视频',
-            onTap: () => _floatBtnPickFile(false),
-          ),
-        ],
-      ),
+      floatingActionButton: widget.routrerData.bucketsModel.acl.write
+          ? SpeedDial(
+              visible: _selectFileIds.isEmpty,
+              icon: Icons.add,
+              activeBackgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              backgroundColor: Theme.of(context).primaryColor,
+              activeIcon: Icons.close,
+              spacing: 3,
+              mini: true,
+              childPadding: const EdgeInsets.all(5),
+              spaceBetweenChildren: 4,
+              direction: SpeedDialDirection.up,
+              switchLabelPosition: false,
+              closeManually: false,
+              heroTag: 'speed-dial-hero-tag',
+              useRotationAnimation: true, //旋转动画
+              elevation: 3.0,
+              animationCurve: Curves.elasticInOut,
+              isOpenOnStart: false,
+              children: [
+                SpeedDialChild(
+                  // elevation: 1,
+                  child:
+                      svg(name: "new_folder", height: 30, color: Colors.white),
+                  backgroundColor: Colors.greenAccent,
+                  foregroundColor: Colors.white,
+                  label: '新建文件夹',
+                  onTap: _floatBtnNewFolder,
+                  onLongPress: () => debugPrint('FIRST CHILD LONG PRESS'),
+                ),
+                SpeedDialChild(
+                  child: svg(name: "new_file", height: 30, color: Colors.white),
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  label: '选择文件',
+                  onTap: () => _floatBtnPickFile(true),
+                ),
+                SpeedDialChild(
+                  child:
+                      svg(name: "new_media", height: 23, color: Colors.white),
+                  backgroundColor: Colors.orangeAccent.shade200,
+                  foregroundColor: Colors.white,
+                  label: '选择图片视频',
+                  onTap: () => _floatBtnPickFile(false),
+                ),
+              ],
+            )
+          : null,
       body: SafeArea(
         child: Stack(
           children: [
@@ -554,7 +562,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
                       enablePullDown: true,
                       enablePullUp: _total > _rows.length,
                       onRefresh: () async {
-                        LogUtil.logInfo("执行SmartRefresher内的刷新函数");
                         _pageNum = 1;
                         _rows.clear();
                         await _loadFiles();
@@ -831,6 +838,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
     var file = _rows.lastWhere((element) => element.id == id);
     DialogUtil.showInputDialog(context, dialogType: DialogType.noHeader,
         call: (value) {
+      value = value.trim();
       ApiMap.renameFile(fileObjectId: id, newName: value).then((v) {
         file.fileName = value;
         setState(() {
@@ -910,7 +918,8 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
       title: "新建文件夹",
       call: (value) async {
         if (await ApiMap.mkdir(
-            parentId: widget.routrerData.rootObject.id, fileName: value)) {
+            parentId: widget.routrerData.rootObject.id,
+            fileName: value.trim())) {
           _pageNum = 1;
           _rows.clear();
           _refreshController.requestRefresh();

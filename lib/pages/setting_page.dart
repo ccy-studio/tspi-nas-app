@@ -44,11 +44,11 @@ class _SettingPageState extends State<SettingPage>
                 onPressed: _logout,
                 icon: const Icon(
                   Icons.logout,
-                  color: Colors.red,
+                  color: Colors.black,
                 ),
                 label: const Text(
                   "退出登录",
-                  style: TextStyle(color: Colors.redAccent),
+                  style: TextStyle(color: Colors.black87, fontSize: 12),
                 )),
           ),
         ),
@@ -58,7 +58,7 @@ class _SettingPageState extends State<SettingPage>
             children: [
               Center(
                 child: CircleAvatar(
-                  radius: 48,
+                  radius: 30,
                   child: Text(
                     context
                             .select<GlobalStateProvider, UserInfoModel?>(
@@ -67,7 +67,7 @@ class _SettingPageState extends State<SettingPage>
                             ?.substring(0, 1) ??
                         "-",
                     style: const TextStyle(
-                        fontSize: 45, fontWeight: FontWeight.bold),
+                        fontSize: 30 * 1.2, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -76,13 +76,30 @@ class _SettingPageState extends State<SettingPage>
               ),
               Center(
                 child: Text(
-                  context.select<GlobalStateProvider, String?>((value) =>
-                          value.currentUser?.nickName ??
-                          value.currentUser?.userAccount) ??
-                      "-",
-                  style: const TextStyle(fontSize: 20),
+                  "昵称: ${context.select<GlobalStateProvider, String?>((value) => value.currentUser?.nickName ?? value.currentUser?.userAccount ?? "-")}",
+                  style: const TextStyle(fontSize: 16),
                   overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              SizedBox.fromSize(
+                size: const Size.fromHeight(20),
+              ),
+              const ListTile(
+                title: Text("泰山派轻NAS"),
+              ),
+              const ListTile(
+                title: Text("GPL3.0 开源协议"),
+                subtitle:
+                    Text("Github: https://github.com/ccy-studio/tspi-nas-app"),
+              ),
+              const ListTile(
+                title: Text("立创开源地址"),
+                subtitle:
+                    Text("https://oshwhub.com/yc_chen/taishan-nas-server"),
+              ),
+              const ListTile(
+                title: Text("版本"),
+                subtitle: Text("Bate V1.0"),
               )
             ],
           ),
@@ -94,6 +111,7 @@ class _SettingPageState extends State<SettingPage>
   void _logout() {
     DialogUtil.showConfirmDialog(context, "您确定要退出登录吗?", ok: () {
       context.read<GlobalStateProvider>().setUserInfo(null);
+      context.read<GlobalStateProvider>().setBuckets([]);
       SpUtil.cleanToken();
       context.go("/login");
     });

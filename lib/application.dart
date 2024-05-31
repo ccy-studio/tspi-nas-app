@@ -1,3 +1,4 @@
+import "package:event_bus/event_bus.dart";
 import "package:flutter/material.dart";
 import "package:flutter_easyloading/flutter_easyloading.dart";
 import "package:tspi_nas_app/config/theme_data.dart" as tdr;
@@ -6,6 +7,8 @@ import "package:tspi_nas_app/utils/sp_util.dart";
 
 class Application {
   static String BASE_URL = "";
+
+  static final EventBus globalEventBus = EventBus();
 
   static final rootNavigatorKey = GlobalKey<NavigatorState>();
 

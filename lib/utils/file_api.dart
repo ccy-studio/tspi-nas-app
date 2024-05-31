@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:tspi_nas_app/model/base_response.dart';
+import 'package:tspi_nas_app/utils/time.dart';
 import 'package:uuid/v1.dart';
 
 import 'package:tspi_nas_app/api/api_map.dart';
@@ -57,6 +59,7 @@ class FileApiUtil {
         targetParentId: parentId,
         filePath: filePath,
         taskId: _idGen.generate());
+    task.addDate = DateUtil.formatDate(DateTime.now());
     uploadTaskPool.add(task);
     eventBus.fire(task);
     _scanTaskManage();
@@ -65,6 +68,7 @@ class FileApiUtil {
   static void pushDownloadTask(FileObjectModel file) {
     var task = FileApiDownloadTask(
         fileObj: file, taskId: _idGen.generate(), fileName: file.fileName);
+    task.addDate = DateUtil.formatDate(DateTime.now());
     downloadTaskPool.add(task);
     eventBus.fire(task);
     _scanTaskManage();
@@ -134,6 +138,7 @@ class FileApiUtil {
         task.progress = received;
         if (received == total) {
           task.status = FileApiTaskStatus.success;
+          task.filePath = filePath;
         } else {
           eventBus.fire(task);
         }
@@ -142,6 +147,7 @@ class FileApiUtil {
     if (task.status != FileApiTaskStatus.success) {
       task.status = FileApiTaskStatus.error;
     }
+    task.endDate = DateUtil.formatDate(DateTime.now());
     eventBus.fire(task);
     _scanTaskManage();
   }
@@ -151,7 +157,7 @@ class FileApiUtil {
       "file":
           await MultipartFile.fromFile(task.filePath, filename: task.fileName),
     });
-    await _http.post(
+    var resp = await _http.post(
       "/fs/object",
       data: formData,
       queryParameters: {
@@ -160,6 +166,7 @@ class FileApiUtil {
         "isOverwrite": "true"
       },
       options: Options(headers: {
+        "Content-Type": "multipart/form-data",
         "X-AUTH-TYPE": "token",
         "Authorization": "${await SpUtil.getToken()}",
         "X-BK":
@@ -183,6 +190,12 @@ class FileApiUtil {
     if (task.status != FileApiTaskStatus.success) {
       task.status = FileApiTaskStatus.error;
     }
+    var respBody = BaseResponse.fromMap(resp.data);
+    if (respBody.code != 200) {
+      LogUtil.logInfo("文件上传失败: ${respBody.msg}");
+      task.status = FileApiTaskStatus.error;
+    }
+    task.endDate = DateUtil.formatDate(DateTime.now());
     eventBus.fire(task);
     _scanTaskManage();
   }
@@ -238,11 +251,14 @@ class FileApiBaseTask {
   String? percentage;
   final String fileName;
   final String taskId;
+  String? addDate;
+  String? endDate;
   FileApiBaseTask(
       {this.status = FileApiTaskStatus.queue,
       this.progress = 0,
       this.count = 0,
       this.percentage,
+      this.addDate,
       required this.fileName,
       required this.taskId});
 
@@ -323,10 +339,12 @@ class FileApiBaseTask {
 
 class FileApiDownloadTask extends FileApiBaseTask {
   final FileObjectModel fileObj;
+  String? filePath;
   FileApiDownloadTask({
     required this.fileObj,
     required super.taskId,
     required super.fileName,
+    this.filePath,
   });
 
   @override
