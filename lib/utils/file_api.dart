@@ -92,15 +92,18 @@ class FileApiUtil {
     task.status = FileApiTaskStatus.running;
     Directory? dir;
     if (Platform.isAndroid) {
-      //dir = await getExternalStorageDirectory();
-      dir = await getDownloadsDirectory();
+      dir = await getExternalStorageDirectory();
+      dir = dir?.parent.parent.parent.parent;
     } else {
       dir = await getDownloadsDirectory();
     }
-    dir ??= await getApplicationDocumentsDirectory();
+    if (dir == null) {
+      LogUtil.logInfo("Get Dir Fail");
+    }
+    // dir ??= await getApplicationDocumentsDirectory();
     FileObjectSignModel sign =
         await ApiMap.getDownloadFileSignInfo(objectId: task.fileObj.id);
-    var filePath = "${dir.path}/${sign.fileName}";
+    var filePath = "${dir!.path}/TSPI_NAS/${sign.fileName}";
     LogUtil.logInfo("任务创建的下载路径：$filePath");
     var uri =
         Uri.encodeFull("/file/s/download/${sign.objectId}_${sign.fileName}");
@@ -130,12 +133,15 @@ class FileApiUtil {
         task.progress = received;
         if (received == total) {
           task.status = FileApiTaskStatus.success;
+        } else {
+          eventBus.fire(task);
         }
       },
     );
     if (task.status != FileApiTaskStatus.success) {
       task.status = FileApiTaskStatus.error;
     }
+    eventBus.fire(task);
     _scanTaskManage();
   }
 
@@ -205,13 +211,13 @@ class FileApiUtil {
             LogUtil.logInfo('$permission 权限被永久拒绝');
           }
         });
-      }
-      // bool isShown = await Permission.storage.shouldShowRequestRationale;
-      var status = await Permission.storage.status;
-      if (status.isDenied) {
-        if (!(await Permission.storage.request().isGranted)) {
-          _openSetting("获取存储权限失败请手动在设置里打开!");
-          return false;
+      } else {
+        var status = await Permission.storage.status;
+        if (status.isDenied) {
+          if (!(await Permission.storage.request().isGranted)) {
+            _openSetting("获取存储权限失败请手动在设置里打开!");
+            return false;
+          }
         }
       }
     }
