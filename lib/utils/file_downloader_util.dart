@@ -204,13 +204,14 @@ class FileObjectDownloaderUtil {
             LogUtil.logInfo('$permission 权限被永久拒绝');
           }
         });
-      }
-      // bool isShown = await ph.Permission.storage.shouldShowRequestRationale;
-      var status = await ph.Permission.storage.status;
-      if (status.isDenied) {
-        if (!(await ph.Permission.storage.request().isGranted)) {
-          _openSetting("获取存储权限失败请手动在设置里打开!");
-          return false;
+      } else {
+        // bool isShown = await ph.Permission.storage.shouldShowRequestRationale;
+        var status = await ph.Permission.storage.status;
+        if (status.isDenied) {
+          if (!(await ph.Permission.storage.request().isGranted)) {
+            _openSetting("获取存储权限失败请手动在设置里打开!");
+            return false;
+          }
         }
       }
     }
