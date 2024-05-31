@@ -36,9 +36,9 @@ class FileApiUtil {
 
   static final _http = Dio(BaseOptions(
     baseUrl: Application.BASE_URL,
-    connectTimeout: const Duration(seconds: 5),
-    sendTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 5),
+    connectTimeout: const Duration(seconds: 60),
+    sendTimeout: const Duration(hours: 24),
+    receiveTimeout: const Duration(hours: 24),
   ));
 
   static int getUploadTaskActiveCount() {
