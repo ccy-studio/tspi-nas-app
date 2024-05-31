@@ -742,12 +742,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         if (file.isDir) {
           continue;
         }
-        // var task = await FileObjectDownloaderUtil.createDownloadTask(
-        //   await ApiMap.getDownloadFileSignInfo(objectId: id),
-        //   file,
-        //   context,
-        // );
-        // FileObjectDownloaderUtil.pushQueue(task);
         FileApiUtil.pushDownloadTask(file);
       }
     }
@@ -940,9 +934,6 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
       if (result != null) {
         for (String? path in result.paths) {
           if (path != null) {
-            // var task = await FileObjectDownloaderUtil.createUploadTask(
-            //     widget.routrerData.rootObject.id, path, context);
-            // FileObjectDownloaderUtil.pushQueue(task);
             FileApiUtil.pushUploadTask(widget.routrerData.rootObject.id, path);
           }
         }
@@ -955,13 +946,13 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   void _fileObjectEventListener(dynamic event) {
     if (event is FileApiUploadTask) {
       if (event.status == FileApiTaskStatus.success) {
-        _rows.clear();
-        _pageNum = 1;
-        _refreshController.requestRefresh();
+        if (widget.routrerData.rootObject.id == event.targetParentId) {
+          _rows.clear();
+          _pageNum = 1;
+          _refreshController.requestRefresh();
+        }
       } else if (event.status == FileApiTaskStatus.error) {
         EasyLoading.showToast("文件上传失败", duration: const Duration(seconds: 3));
-      } else if (event.status == FileApiTaskStatus.running) {
-        LogUtil.logInfo("上传进度：${event.percentage}");
       }
     }
   }

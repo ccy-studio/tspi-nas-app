@@ -22,9 +22,11 @@ import 'package:tspi_nas_app/utils/sp_util.dart';
 import 'package:tspi_nas_app/utils/widget_common.dart';
 
 class FileApiUtil {
-  static final EventBus eventBus = EventBus();
+  /////CONST
   static const int _downloadTaskMaxCount = 5;
   static const int _uploadTaskMaxCount = 5;
+
+  static final EventBus eventBus = EventBus();
   static final uploadTaskPool = List<FileApiUploadTask>.empty(growable: true);
   static final downloadTaskPool =
       List<FileApiDownloadTask>.empty(growable: true);
@@ -56,6 +58,7 @@ class FileApiUtil {
         filePath: filePath,
         taskId: _idGen.generate());
     uploadTaskPool.add(task);
+    eventBus.fire(task);
     _scanTaskManage();
   }
 
@@ -63,6 +66,7 @@ class FileApiUtil {
     var task = FileApiDownloadTask(
         fileObj: file, taskId: _idGen.generate(), fileName: file.fileName);
     downloadTaskPool.add(task);
+    eventBus.fire(task);
     _scanTaskManage();
   }
 
@@ -97,13 +101,10 @@ class FileApiUtil {
     } else {
       dir = await getDownloadsDirectory();
     }
-    if (dir == null) {
-      LogUtil.logInfo("Get Dir Fail");
-    }
-    // dir ??= await getApplicationDocumentsDirectory();
+    dir ??= await getApplicationDocumentsDirectory();
     FileObjectSignModel sign =
         await ApiMap.getDownloadFileSignInfo(objectId: task.fileObj.id);
-    var filePath = "${dir!.path}/TSPI_NAS/${sign.fileName}";
+    var filePath = "${dir.path}/TSPI_NAS/${sign.fileName}";
     LogUtil.logInfo("任务创建的下载路径：$filePath");
     var uri =
         Uri.encodeFull("/file/s/download/${sign.objectId}_${sign.fileName}");
@@ -230,14 +231,14 @@ class FileApiUtil {
   }
 }
 
-class _BaseFileTask {
+class FileApiBaseTask {
   FileApiTaskStatus status;
   int progress;
   int count;
   String? percentage;
   final String fileName;
   final String taskId;
-  _BaseFileTask(
+  FileApiBaseTask(
       {this.status = FileApiTaskStatus.queue,
       this.progress = 0,
       this.count = 0,
@@ -245,7 +246,7 @@ class _BaseFileTask {
       required this.fileName,
       required this.taskId});
 
-  _BaseFileTask copyWith({
+  FileApiBaseTask copyWith({
     FileApiTaskStatus? status,
     int? progress,
     int? count,
@@ -253,7 +254,7 @@ class _BaseFileTask {
     String? fileName,
     String? taskId,
   }) {
-    return _BaseFileTask(
+    return FileApiBaseTask(
       status: status ?? this.status,
       progress: progress ?? this.progress,
       count: count ?? this.count,
@@ -274,8 +275,8 @@ class _BaseFileTask {
     };
   }
 
-  factory _BaseFileTask.fromMap(Map<String, dynamic> map) {
-    return _BaseFileTask(
+  factory FileApiBaseTask.fromMap(Map<String, dynamic> map) {
+    return FileApiBaseTask(
       status: EnumUtil.enumFromString(
           FileApiTaskStatus.values, map['status'] as String)!,
       progress: map['progress'] as int,
@@ -289,8 +290,8 @@ class _BaseFileTask {
 
   String toJson() => json.encode(toMap());
 
-  factory _BaseFileTask.fromJson(String source) =>
-      _BaseFileTask.fromMap(json.decode(source) as Map<String, dynamic>);
+  factory FileApiBaseTask.fromJson(String source) =>
+      FileApiBaseTask.fromMap(json.decode(source) as Map<String, dynamic>);
 
   @override
   String toString() {
@@ -298,7 +299,7 @@ class _BaseFileTask {
   }
 
   @override
-  bool operator ==(covariant _BaseFileTask other) {
+  bool operator ==(covariant FileApiBaseTask other) {
     if (identical(this, other)) return true;
 
     return other.status == status &&
@@ -320,7 +321,7 @@ class _BaseFileTask {
   }
 }
 
-class FileApiDownloadTask extends _BaseFileTask {
+class FileApiDownloadTask extends FileApiBaseTask {
   final FileObjectModel fileObj;
   FileApiDownloadTask({
     required this.fileObj,
@@ -342,7 +343,7 @@ class FileApiDownloadTask extends _BaseFileTask {
   int get hashCode => fileObj.hashCode;
 }
 
-class FileApiUploadTask extends _BaseFileTask {
+class FileApiUploadTask extends FileApiBaseTask {
   final String filePath;
   final int targetParentId;
   FileApiUploadTask({
