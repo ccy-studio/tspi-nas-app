@@ -4,7 +4,6 @@ import 'dart:math';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:back_button_interceptor/back_button_interceptor.dart';
-import 'package:background_downloader/background_downloader.dart';
 import 'package:event_bus/event_bus.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -16,11 +15,10 @@ import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
 import 'package:tspi_nas_app/common/page_widget_enum.dart';
-import 'package:tspi_nas_app/model/app/file_event_model.dart';
 import 'package:tspi_nas_app/model/app/file_router_entity.dart';
 import 'package:tspi_nas_app/model/file_object_model.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
-import 'package:tspi_nas_app/utils/file_downloader_util.dart';
+import 'package:tspi_nas_app/utils/file_api.dart';
 import 'package:tspi_nas_app/utils/icon_util.dart';
 import 'package:tspi_nas_app/utils/log_util.dart';
 import 'package:tspi_nas_app/utils/object_util.dart';
@@ -64,7 +62,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   @override
   void initState() {
     _fileObjectSubscription =
-        FileObjectDownloaderUtil.eventBus.on().listen(_fileObjectEventListener);
+        FileApiUtil.eventBus.on().listen(_fileObjectEventListener);
     Future.delayed(Duration.zero).then((value) {
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
@@ -730,7 +728,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
   ///下载文件
   void _selectedBtnGroupDownload() async {
     // //获取系统权限
-    if (await FileObjectDownloaderUtil.requestStorePermission() == false) {
+    if (await FileApiUtil.requestStorePermission() == false) {
       return;
     }
 
@@ -744,12 +742,13 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
         if (file.isDir) {
           continue;
         }
-        var task = await FileObjectDownloaderUtil.createDownloadTask(
-          await ApiMap.getDownloadFileSignInfo(objectId: id),
-          file,
-          context,
-        );
-        FileObjectDownloaderUtil.pushQueue(task);
+        // var task = await FileObjectDownloaderUtil.createDownloadTask(
+        //   await ApiMap.getDownloadFileSignInfo(objectId: id),
+        //   file,
+        //   context,
+        // );
+        // FileObjectDownloaderUtil.pushQueue(task);
+        FileApiUtil.pushDownloadTask(file);
       }
     }
     setState(() {
@@ -930,7 +929,7 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   ///选择文件
   void _floatBtnPickFile(bool all) async {
-    if (await FileObjectDownloaderUtil.requestStorePermission()) {
+    if (await FileApiUtil.requestStorePermission()) {
       EasyLoading.show();
       FilePickerResult? result = await FilePicker.platform.pickFiles(
           withData: false,
@@ -941,9 +940,10 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
       if (result != null) {
         for (String? path in result.paths) {
           if (path != null) {
-            var task = await FileObjectDownloaderUtil.createUploadTask(
-                widget.routrerData.rootObject.id, path, context);
-            FileObjectDownloaderUtil.pushQueue(task);
+            // var task = await FileObjectDownloaderUtil.createUploadTask(
+            //     widget.routrerData.rootObject.id, path, context);
+            // FileObjectDownloaderUtil.pushQueue(task);
+            FileApiUtil.pushUploadTask(widget.routrerData.rootObject.id, path);
           }
         }
         EasyLoading.showToast("成功加入到上传队列");
@@ -953,13 +953,15 @@ class _FileObjectPageState extends State<FileObjectPage> with MultDataLine {
 
   ///文件上传Event监听
   void _fileObjectEventListener(dynamic event) {
-    if (event is FileEventStatus) {
-      if (event.status == TaskStatus.complete) {
+    if (event is FileApiUploadTask) {
+      if (event.status == FileApiTaskStatus.success) {
         _rows.clear();
         _pageNum = 1;
         _refreshController.requestRefresh();
-      } else if (event.status == TaskStatus.failed) {
+      } else if (event.status == FileApiTaskStatus.error) {
         EasyLoading.showToast("文件上传失败", duration: const Duration(seconds: 3));
+      } else if (event.status == FileApiTaskStatus.running) {
+        LogUtil.logInfo("上传进度：${event.percentage}");
       }
     }
   }

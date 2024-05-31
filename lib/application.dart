@@ -21,8 +21,6 @@ class Application {
     tdr.register();
     SpUtil.getBaseUrl().then((value) => BASE_URL = value ?? "");
 
-    FileObjectDownloaderUtil.install();
-
     EasyLoading.instance
       ..indicatorType = EasyLoadingIndicatorType.wave
       ..loadingStyle = EasyLoadingStyle.custom
