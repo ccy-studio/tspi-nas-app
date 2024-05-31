@@ -136,6 +136,7 @@ class FileApiUtil {
     if (task.status != FileApiTaskStatus.success) {
       task.status = FileApiTaskStatus.error;
     }
+    _scanTaskManage();
   }
 
   static Future<void> _execUploadTask(FileApiUploadTask task) async {
@@ -176,6 +177,7 @@ class FileApiUtil {
       task.status = FileApiTaskStatus.error;
     }
     eventBus.fire(task);
+    _scanTaskManage();
   }
 
   ///申请权限
