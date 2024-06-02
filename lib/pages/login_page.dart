@@ -8,6 +8,7 @@ import 'package:tspi_nas_app/model/base_response.dart';
 import 'package:tspi_nas_app/model/user_info_model.dart';
 import 'package:tspi_nas_app/provider/global_state.dart';
 import 'package:tspi_nas_app/utils/http_util.dart';
+import 'package:tspi_nas_app/utils/icon_util.dart';
 import 'package:tspi_nas_app/utils/log_util.dart';
 import 'package:tspi_nas_app/utils/sp_util.dart';
 import 'package:tspi_nas_app/utils/widget_common.dart';
@@ -57,9 +58,10 @@ class _LoginPageState extends State<LoginPage> {
               Align(
                 alignment: Alignment.topRight,
                 child: IconButton(
+                  color: Colors.black87,
                   icon: const Icon(
                     Icons.settings,
-                    size: 30,
+                    size: 25,
                   ),
                   onPressed: _openSetting,
                 ),
@@ -73,10 +75,10 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     const Text(
                       "油条云轻NAS",
-                      style: TextStyle(color: Colors.black, fontSize: 32),
+                      style: TextStyle(color: Colors.black, fontSize: 40),
                     ),
                     const Text("登录后继续体验",
-                        style: TextStyle(color: Colors.black45, fontSize: 12)),
+                        style: TextStyle(color: Colors.black45, fontSize: 15)),
                     const SizedBox(height: 60.0),
                     Form(
                         autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -135,8 +137,14 @@ class _LoginPageState extends State<LoginPage> {
                       child: SizedBox(
                         width: MediaQuery.of(context).size.width / 3 * 2,
                         child: ElevatedButton(
+                          style: ButtonStyle(
+                              backgroundColor: MaterialStateProperty.all(
+                                  Theme.of(context).primaryColor)),
                           onPressed: _onLoginClick,
-                          child: const Text("登录"),
+                          child: const Text(
+                            "登录",
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
                     ),
@@ -155,6 +163,7 @@ class _LoginPageState extends State<LoginPage> {
     SpUtil.getBaseUrl().then((value) => {
           DialogUtil.showInputDialog(
             context,
+            title: "配置NAS服务器地址",
             initVal: value,
             placeholder: "输入NAS服务器Http路径",
             validate: (value) {
@@ -178,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
     if ((_formKey.currentState as FormState).validate()) {
       //验证通过提交数据
       EasyLoading.show(
-        status: '登录中...',
+        status: '正在登录中...',
         dismissOnTap: true,
       );
       ApiMap.login(account.text, pwd.text).then((value) {

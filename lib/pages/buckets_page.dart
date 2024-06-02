@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:tspi_nas_app/api/api_map.dart';
+import 'package:tspi_nas_app/application.dart';
+import 'package:tspi_nas_app/common/global_event.dart';
 import 'package:tspi_nas_app/model/app/file_router_entity.dart';
 import 'package:tspi_nas_app/model/buckets_model.dart';
 import 'package:tspi_nas_app/model/file_object_model.dart';
@@ -24,18 +28,28 @@ class _BucketsPageState extends State<BucketsPage>
   static const _dataLineBucket = "_dataLineBucket";
 
   final _bucketsArr = List<BucketsModel>.empty(growable: true);
+  StreamSubscription<EventPermisionChange>? _subscription;
 
   @override
   void initState() {
+    _subscription = Application.globalEventBus
+        .on<EventPermisionChange>()
+        .listen(_onPermissionChangeEvent);
     Future.delayed(Duration.zero).then((value) {
       _reloadBuckets();
     });
     super.initState();
   }
 
+  void _onPermissionChangeEvent(e) {
+    _reloadBuckets();
+  }
+
   Future<void> _reloadBuckets() {
     closeSoftKeyboardDisplay();
     return ApiMap.getUserBucketAll().then((value) {
+      // 移除掉没有读权限的存储桶
+      value.removeWhere((element) => !element.acl.read);
       _bucketsArr.clear();
       context.read<GlobalStateProvider>().setBuckets(value);
       _bucketsArr.addAll(value);
@@ -47,6 +61,7 @@ class _BucketsPageState extends State<BucketsPage>
   @override
   void dispose() {
     disposeDataLine();
+    _subscription?.cancel();
     super.dispose();
   }
 
@@ -75,15 +90,19 @@ class _BucketsPageState extends State<BucketsPage>
     );
   }
 
+  Widget _emptyWidget() {
+    return Center(
+      child: svg(
+          name: "empty_big", width: MediaQuery.of(context).size.width / 3 * 2),
+    );
+  }
+
   Widget widgetGridView() {
     return getLine<List<BucketsModel>>(_dataLineBucket,
-        waitWidget: Center(
-          child: svg(
-              name: "empty_big",
-              width: MediaQuery.of(context).size.width / 3 * 2),
-        )).addObserver((context, pack) {
+            waitWidget: _emptyWidget())
+        .addObserver((context, pack) {
       return GridView.builder(
-          itemCount: pack.data?.length ?? 0,
+          itemCount: (pack.data?.length ?? 0),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3),
           itemBuilder: (BuildContext context, int index) {
